@@ -80,7 +80,7 @@ export function runExperiment({
             let res;
 
             if (f === "vickrey") res = calcVickrey({ s, x, baseSeed });
-            else if (f === "english") res = calcEnglish({ s, x, baseSeed });
+            else if (f === "english") res = calcEnglish({ s, x, agr, ost, baseSeed });
             else if (f === "first") res = calcFirstPrice({ s, x, agr, ost, baseSeed });
             else if (f === "dutch") res = calcDutch({ s, x, agr, ost, baseSeed });
             else continue;
