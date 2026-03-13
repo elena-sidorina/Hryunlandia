@@ -103,7 +103,7 @@ export async function POST(req) {
                 res = calcVickrey({ s, x, baseSeed });
 
             else if (format === "english")
-                res = calcEnglish({ s, x, baseSeed });
+                res = calcEnglish({ s, x, agr, ost, baseSeed });
 
             else if (format === "first")
                 res = calcFirstPrice({ s, x, agr, ost, baseSeed });
