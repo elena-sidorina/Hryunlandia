@@ -11,6 +11,17 @@ function mean(arr) {
     return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
+function pct(v, total) {
+    if (!total) return "0%";
+    return `${Math.round((v / total) * 100)}%`;
+}
+
+function formatNum(v) {
+    return Math.round(v);
+}
+
+const WINNER_LABELS = ["Честная", "Рациональная", "Агрессивная", "Осторожная"];
+
 
 // runExperiment запускает K прогонов
 // K-число прогонов
@@ -19,7 +30,7 @@ function mean(arr) {
 // agr-коэффициент агрессивной стратегии
 // ost-коэффициент осторожной стратегии
 // formats-список форматов для расчета
-// freeze-фиксировать оценки или нет
+// freeze-фикс оценки или нет
 // baseSeed-базовый seed
 export function runExperiment({
     K,
@@ -31,84 +42,92 @@ export function runExperiment({
     freeze,
     baseSeed,
 }) {
+    const store = {};
 
-    // считаем победы по типам
-    const win = { honest: 0, aggressive: 0, rational: 0, cautious: 0 };
-
-    // сюда будем собирать цены
-    const prices = {};
-
-    // сюда ex post выигрыши
-    const exPosts = {};
-
-    // сколько раз была переплата
-    const overpay = {};
-
-    // сколько раз исход был эффективным
-    const eff = {};
-
-    // инициализируем объекты для каждого формата
-    formats.forEach(f => {
-        prices[f] = [];
-        exPosts[f] = [];
-        overpay[f] = 0;
-        eff[f] = 0;
+    // для каджого формата отдельно храним статистику
+    formats.forEach((f) => {
+        store[f] = {
+            wins: {
+                "Честная": 0,
+                "Рациональная": 0,
+                "Агрессивная": 0,
+                "Осторожная": 0,
+            },
+            prices: [],
+            subjs: [],
+            exPosts: [],
+            overpay: 0,
+            eff: 0,
+        };
     });
 
     let frozenS = null; // если freeze=true, будем хранить один набор оценок
 
     for (let k = 0; k < K; k++) {
-
         let s;
 
+        // если включена фикс, оценки генерятся один раз и потом используем их во всех прогонах
         if (freeze) {
-            // если freeze включен, генерим только один раз
             if (!frozenS) {
                 const rng = new Rng(baseSeed);
                 frozenS = genValuations({ x, yPct, rng });
             }
             s = frozenS;
         } else {
-            // иначе каждый прогон новые оценки
             const rng = new Rng(baseSeed + k);
             s = genValuations({ x, yPct, rng });
         }
 
-        // считаем каждый выбранный формат
         for (const f of formats) {
-
             let res;
 
-            if (f === "vickrey") res = calcVickrey({ s, x, baseSeed });
-            else if (f === "english") res = calcEnglish({ s, x, agr, ost, baseSeed });
-            else if (f === "first") res = calcFirstPrice({ s, x, agr, ost, baseSeed });
-            else if (f === "dutch") res = calcDutch({ s, x, agr, ost, baseSeed });
-            else continue;
+            if (f === "vickrey") {
+                res = calcVickrey({ s, x, baseSeed });
+            } else if (f === "english") {
+                res = calcEnglish({ s, x, agr, ost, baseSeed });
+            } else if (f === "first") {
+                res = calcFirstPrice({ s, x, agr, ost, baseSeed });
+            } else if (f === "dutch") {
+                res = calcDutch({ s, x, agr, ost, baseSeed });
+            } else {
+                continue;
+            }
 
-            const types = ["honest", "aggressive", "rational", "cautious"];
+            const winnerName = WINNER_LABELS[res.winner];
+            const subj = typeof res.subj === "number" ? res.subj : 0;
 
-            // увеличиваем победы
-            win[types[res.winner]] += 1;
+            store[f].wins[winnerName] += 1;
+            store[f].prices.push(res.price);
+            store[f].subjs.push(subj);
+            store[f].exPosts.push(res.exPost);
 
-            prices[f].push(res.price);
-            exPosts[f].push(res.exPost);
+            if (res.exPost < 0) {
+                store[f].overpay += 1;
+            }
 
-            if (res.exPost < 0) overpay[f] += 1;
-            if (isEfficient(res.winner, s)) eff[f] += 1;
+            if (isEfficient(res.winner, s)) {
+                store[f].eff += 1;
+            }
         }
     }
 
     const out = {};
 
-    // считаем средние показатели
-    for (const f of formats) {
+    //собираем итог статистику по каждому формату
+    formats.forEach((f) => {
         out[f] = {
-            avgPrice: mean(prices[f]),
-            avgExPost: mean(exPosts[f]),
-            overpayShare: overpay[f] / K,
-            efficientShare: eff[f] / K,
+            winRates: {
+                "Честная": pct(store[f].wins["Честная"], K),
+                "Рациональная": pct(store[f].wins["Рациональная"], K),
+                "Агрессивная": pct(store[f].wins["Агрессивная"], K),
+                "Осторожная": pct(store[f].wins["Осторожная"], K),
+            },
+            avgPrice: formatNum(mean(store[f].prices)),
+            avgSubj: formatNum(mean(store[f].subjs)),
+            avgExPost: formatNum(mean(store[f].exPosts)),
+            overpayRate: pct(store[f].overpay, K),
+            effRate: pct(store[f].eff, K),
         };
-    }
-
-    return { winRates: win, byFormat: out };
+    });
+    return out;
 }
