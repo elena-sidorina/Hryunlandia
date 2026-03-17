@@ -109,8 +109,6 @@ export default function LearningPage() {
 
     // эксперимент
     //экран 7
-    const [K, setK] = useState(50);
-    const [expFormats, setExpFormats] = useState(["english", "dutch", "first", "vickrey"]);
     const [stats, setStats] = useState(null);
 
     // нижняя и верхняя границы для оценок свинок
@@ -359,14 +357,14 @@ export default function LearningPage() {
     // экран 7
     // запускаем эксперимент
     async function runExp() {
-
         const data = await apiPost({
-
             mode: "experiment",
 
-            K,
+            // в экспер всегда фикс число прогонов
+            K: 100,
 
-            formats: expFormats,
+            // всегда сравниваем все 4 формата
+            formats: ["english", "dutch", "first", "vickrey"],
 
             x,
             yPct,
@@ -383,7 +381,7 @@ export default function LearningPage() {
     //r-это результат одного аукциона (english, dutch, first или vickrey)
     function getWinnerName(r) {
 
-        // если вдруг результата нет (например ещё не нажали сравнить)
+        // если вдруг резултата нет (например ещё не нажали сравнить)
         if (!r) return "—";
 
         // если сервер уже присылает норм имя победителя, тогда просто используем его
@@ -394,7 +392,7 @@ export default function LearningPage() {
             return PIGS[r.winner]?.title ?? "—";
         }
 
-        // на всякий случай — если победитель пришёл строкой
+        // на всякий случай, если победитель пришёл строкой
         return r.winner ?? "—";
     }
 
@@ -477,58 +475,52 @@ export default function LearningPage() {
             // если карточек нет считаем false
             : false;
 
-    // удобный список форматов для чекбоксов на экране 7
-    const EXP_FORMAT_OPTIONS = [
-        { id: "english", title: "Английский" },
-        { id: "dutch", title: "Голландский" },
-        { id: "first", title: "Первая цена" },
-        { id: "vickrey", title: "Викри" },
-    ];
+    // в эксперименте всегда сравниваем 4 формата
+    const EXP_K = 100;
 
-    // маленькая функция: переключаем формат в списке эксперимента
-    function toggleExpFormat(id) {
-        setExpFormats((prev) => {
-            // если формат уже есть — убираем его
-            if (prev.includes(id)) {
-                return prev.filter((x) => x !== id);
-            }
-
-            // если формата ещё нет — добавляем
-            return [...prev, id];
-        });
-
-        // если пользователь меняет набор форматов,
-        // старую статистику лучше сбросить
-        setStats(null);
-    }
-
-    // берём карточки статистики из ответа сервера
-    // если stats ещё нет — просто пустой массив
-    const statCards = stats
-        ? Object.entries(stats).map(([id, data]) => ({
-            id,
-            title: FORMATS.find((f) => f.id === id)?.title ?? id,
-            data,
-        }))
+    // норм список карточек  со статистикой
+    const expCards = stats
+        ? [
+            {
+                id: "english",
+                title: "Английский",
+                data: stats.english,
+            },
+            {
+                id: "dutch",
+                title: "Голландский",
+                data: stats.dutch,
+            },
+            {
+                id: "first",
+                title: "Первая цена",
+                data: stats.first,
+            },
+            {
+                id: "vickrey",
+                title: "Викри",
+                data: stats.vickrey,
+            },
+        ]
         : [];
 
-    // ищем формат с самой высокой средней ценой
-    const maxAvgPrice =
-        statCards.length > 0
-            ? Math.max(...statCards.map((c) => c.data?.avgPrice ?? -Infinity))
-            : null;
+    // ищем свинку, которая выигрывает чаще всего
+    function getTopWinner(winRates) {
+        if (!winRates) return null;
 
-    // ищем формат с самым большим средним субъективным выигрышем
-    const maxAvgSubj =
-        statCards.length > 0
-            ? Math.max(...statCards.map((c) => c.data?.avgSubj ?? -Infinity))
-            : null;
+        const entries = Object.entries(winRates);
+        if (entries.length === 0) return null;
 
-    // ищем формат с самой большой долей переплат
-    const maxOverpayRate =
-        statCards.length > 0
-            ? Math.max(...statCards.map((c) => c.data?.overpayRate ?? -Infinity))
-            : null;
+        let best = entries[0];
+
+        for (let i = 1; i < entries.length; i++) {
+            if (entries[i][1] > best[1]) {
+                best = entries[i];
+            }
+        }
+
+        return best[0];
+    }
 
     return (
 
@@ -1510,131 +1502,105 @@ export default function LearningPage() {
                         <div className="mt-5">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <h2 className="text-2xl font-extrabold">Эксперимент (K прогонов)</h2>
+                                    <h2 className="text-2xl font-extrabold">Эксперимент: сравнение аукционов</h2>
                                     <div className="mt-2 text-slate-700">
-                                        Здесь мы много раз запускаем аукционы и смотрим уже не на один пример,
-                                        а на общую статистику по форматам.
+                                        Здесь мы много раз запускаем все 4 формата аукциона и смотрим,
+                                        какие закономерности появляются в среднем
                                     </div>
                                 </div>
 
                                 <button
                                     onClick={runExp}
-                                    disabled={expFormats.length === 0 || K < 1}
-                                    className={
-                                        "px-4 py-2 rounded-xl text-sm font-medium transition " +
-                                        (expFormats.length === 0 || K < 1
-                                            ? "bg-slate-300 text-slate-600"
-                                            : "bg-pink-500 text-white hover:bg-pink-600")
-                                    }
+                                    className="px-4 py-2 rounded-xl text-sm font-medium bg-pink-500 text-white hover:bg-pink-600 transition"
                                 >
                                     Запустить эксперимент
                                 </button>
                             </div>
 
-                            {/* параметры эксперимента */}
-                            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                <div className="rounded-2xl border bg-white/70 p-5">
-                                    <div className="text-lg font-bold">Параметры эксперимента</div>
+                            <div className="mt-6 rounded-2xl border bg-pink-50/70 p-5">
+                                <div className="text-lg font-bold">Как пользоваться экраном</div>
 
-                                    <div className="mt-4 space-y-4">
-                                        <div>
-                                            <div className="text-sm text-slate-600 mb-2">Количество прогонов K</div>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                max={500}
-                                                value={K}
-                                                onChange={(e) => {
-                                                    setK(Number(e.target.value));
-                                                    setStats(null);
-                                                }}
-                                                className="border rounded-lg p-2 w-full bg-white"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <div className="text-sm text-slate-600 mb-2">Какие форматы включить</div>
-
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {EXP_FORMAT_OPTIONS.map((f) => (
-                                                    <label
-                                                        key={f.id}
-                                                        className="flex items-center gap-3 rounded-xl border bg-white p-3 cursor-pointer"
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={expFormats.includes(f.id)}
-                                                            onChange={() => toggleExpFormat(f.id)}
-                                                        />
-                                                        <span>{f.title}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="rounded-2xl border bg-white/70 p-5">
-                                    <div className="text-lg font-bold">Текущие условия модели</div>
-
-                                    <div className="mt-4 space-y-2 text-slate-700">
-                                        <div>Истинная ценность лота: <span className="font-semibold">{x}</span></div>
-                                        <div>Шум оценки: <span className="font-semibold">{yPct}%</span></div>
-                                        <div>Коэффициент агрессивной свинки: <span className="font-semibold">{agr.toFixed(2)}</span></div>
-                                        <div>Коэффициент осторожной свинки: <span className="font-semibold">{ost.toFixed(2)}</span></div>
+                                <div className="mt-3 space-y-2 text-slate-700 leading-relaxed">
+                                    <div>
+                                        Здесь можно много раз запускать эксперимент, а затем возвращаться назад
+                                        и менять параметры модели, чтобы лучше понять, как работают разные
+                                        аукционы и как поведение ботов зависит от настроек.
                                     </div>
 
-                                    <div className="mt-4 text-sm text-slate-600">
-                                        В эксперименте эти параметры используются много раз, чтобы посмотреть
-                                        общую закономерность, а не только один конкретный прогон.
+                                    <div>
+                                        Попробуйте менять шум оценки, коэффициенты агрессивной и осторожной
+                                        свинок, а потом снова запускать эксперимент и сравнивать результаты.
                                     </div>
                                 </div>
                             </div>
 
-                            {/* если эксперимент ещё не запущен */}
+                            <div className="mt-6 rounded-2xl border bg-white/70 p-5">
+                                <div className="text-lg font-bold">Условия эксперимента</div>
+
+                                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-700">
+                                    <div>Истинная ценность лота: <span className="font-semibold">{x}</span></div>
+                                    <div>Шум оценки: <span className="font-semibold">{yPct}%</span></div>
+                                    <div>Коэффициент агрессивной свинки: <span className="font-semibold">{agr.toFixed(2)}</span></div>
+                                    <div>Коэффициент осторожной свинки: <span className="font-semibold">{ost.toFixed(2)}</span></div>
+                                    <div>Количество прогонов: <span className="font-semibold">{EXP_K}</span></div>
+                                    <div>Сравниваем форматы: <span className="font-semibold">все 4</span></div>
+                                </div>
+                            </div>
+
                             {!stats && (
-                                <div className="mt-6 rounded-2xl border bg-white/70 p-5 text-sm text-slate-600">Пока статистики нет. Выберите количество прогонов и форматы,
-                                    затем нажмите «Запустить эксперимент».
+                                <div className="mt-6 rounded-2xl border bg-white/70 p-5 text-sm text-slate-600">
+                                    Пока статистики нет. Нажмите «Запустить эксперимент», чтобы сравнить
+                                    все 4 формата аукциона.
                                 </div>
                             )}
 
-                            {/* карточки статистики */}
                             {stats && (
                                 <>
                                     <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        {statCards.map((card) => {
+                                        {expCards.map((card) => {
                                             const d = card.data;
-                                            const isMaxPrice = d?.avgPrice === maxAvgPrice;
-                                            const isMaxSubj = d?.avgSubj === maxAvgSubj;
-                                            const isMaxOverpay = d?.overpayRate === maxOverpayRate;
+                                            const topWinner = getTopWinner(d?.winRates);
 
                                             return (
                                                 <div key={card.id} className="rounded-2xl border bg-white/70 p-5">
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="text-lg font-bold">{card.title}</div>
+                                                    <div className="text-lg font-bold">{card.title}</div>
 
-                                                        <div className="flex flex-wrap gap-2 justify-end">
-                                                            {isMaxPrice && (
-                                                                <span className="px-2 py-1 rounded-full text-xs bg-pink-100 text-pink-700 border border-pink-200">
-                                                                    макс. средняя цена
-                                                                </span>
-                                                            )}
-                                                            {isMaxSubj && (
-                                                                <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 border border-green-200">
-                                                                    макс. ср. выигрыш
-                                                                </span>
-                                                            )}
-                                                            {isMaxOverpay && (
-                                                                <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 border border-red-200">
-                                                                    макс. переплата
-                                                                </span>
-                                                            )}
+                                                    <div className="mt-4">
+                                                        <div className="text-sm font-semibold text-slate-700 mb-3">
+                                                            Кто как часто выигрывает
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            {d?.winRates && Object.entries(d.winRates).map(([name, value]) => {
+                                                                const isTop = name === topWinner;
+
+                                                                return (
+                                                                    <div
+                                                                        key={name}
+                                                                        className={
+                                                                            "flex items-center justify-between rounded-xl border px-4 py-3 " +
+                                                                            (isTop
+                                                                                ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
+                                                                                : "bg-white border-slate-200")
+                                                                        }
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span>{name}</span>
+                                                                            {isTop && <span>👑</span>}
+                                                                        </div>
+
+                                                                        <div className="font-bold">
+                                                                            {value}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-4 grid grid-cols-2 gap-3">
+                                                    <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                         <div className="rounded-xl border bg-white p-4">
-                                                            <div className="text-sm text-slate-600">Средняя цена</div>
+                                                            <div className="text-sm text-slate-600">Средняя цена сделки</div>
                                                             <div className="text-2xl font-extrabold">
                                                                 {d?.avgPrice ?? "—"}
                                                             </div>
@@ -1661,98 +1627,51 @@ export default function LearningPage() {
                                                             </div>
                                                         </div>
 
-                                                        <div className="rounded-xl border bg-white p-4"><div className="text-sm text-slate-600">Доля эффективных исходов</div>
-                                                            <div className="text-2xl font-extrabold">
-                                                                {d?.effRate ?? "—"}
+                                                        {card.id === "vickrey" && (
+                                                            <div className="mt-5 w-full col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-800">
+                                                                В аукционе Викри участники не искажают ставки, поэтому распределение побед
+                                                                обычно получается более ровным, чем в стратегических форматах
                                                             </div>
-                                                        </div>
+                                                        )}
+
                                                     </div>
-
-                                                    {/* если сервер присылает winRates по типам свинок */}
-                                                    {d?.winRates && typeof d.winRates === "object" && (
-                                                        <div className="mt-4 rounded-xl border bg-white p-4">
-                                                            <div className="text-sm font-semibold text-slate-700 mb-3">
-                                                                Win-rate по типам свинок
-                                                            </div>
-
-                                                            <div className="space-y-2 text-sm text-slate-700">
-                                                                {Object.entries(d.winRates).map(([name, value]) => (
-                                                                    <div key={name} className="flex items-center justify-between">
-                                                                        <span>{name}</span>
-                                                                        <span className="font-semibold">{value}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             );
                                         })}
                                     </div>
 
-                                    {/* таблица */}
                                     <div className="mt-6 rounded-2xl border bg-white/70 p-5">
-                                        <div className="text-lg font-bold">Сводная таблица эксперимента</div>
+                                        <div className="text-lg font-bold">Что можно заметить по результатам</div>
 
-                                        <div className="mt-4 overflow-x-auto">
-                                            <table className="w-full border-collapse">
-                                                <thead>
-                                                    <tr className="text-left border-b">
-                                                        <th className="py-3 pr-4">Формат</th>
-                                                        <th className="py-3 pr-4">Средняя цена</th>
-                                                        <th className="py-3 pr-4">Средний субъективный выигрыш</th>
-                                                        <th className="py-3 pr-4">Средний ex post выигрыш</th>
-                                                        <th className="py-3 pr-4">Доля переплат</th>
-                                                        <th className="py-3 pr-4">Доля эффективных исходов</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {statCards.map((card) => {
-                                                        const d = card.data;
-                                                        return (
-                                                            <tr key={card.id} className="border-b last:border-b-0">
-                                                                <td className="py-3 pr-4 font-medium">{card.title}</td>
-                                                                <td className="py-3 pr-4">{d?.avgPrice ?? "—"}</td>
-                                                                <td className="py-3 pr-4">{d?.avgSubj ?? "—"}</td>
-                                                                <td className="py-3 pr-4">{d?.avgExPost ?? "—"}</td>
-                                                                <td className="py-3 pr-4">{d?.overpayRate ?? "—"}</td>
-                                                                <td className="py-3 pr-4">{d?.effRate ?? "—"}</td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-
-                                    {/* вывод */}
-                                    <div className="mt-6 rounded-2xl border bg-white/70 p-5">
-                                        <div className="text-lg font-bold">Вывод по эксперименту</div>
-
-                                        <div className="mt-4 space-y-2 text-slate-700 leading-relaxed"><div>
-                                            Самая высокая средняя цена получилась в формате{" "}
-                                            <span className="font-semibold">
-                                                {statCards.find((c) => c.data?.avgPrice === maxAvgPrice)?.title ?? "—"}
-                                            </span>.
-                                        </div>
-
+                                        <div className="mt-4 space-y-3 text-slate-700 leading-relaxed">
                                             <div>
-                                                Наибольший средний субъективный выигрыш победителя получился в формате{" "}
-                                                <span className="font-semibold">
-                                                    {statCards.find((c) => c.data?.avgSubj === maxAvgSubj)?.title ?? "—"}
-                                                </span>.
+                                                Этот формат показывает уже не частный пример, а устойчивые различия
+                                                между форматами аукциона на большом числе прогонов.
                                             </div>
 
                                             <div>
-                                                Самая высокая доля переплат наблюдалась в формате{" "}
-                                                <span className="font-semibold">
-                                                    {statCards.find((c) => c.data?.overpayRate === maxOverpayRate)?.title ?? "—"}
-                                                </span>.
+                                                Не трудно заметить, что в английском, голландском
+                                                и аукционе первой цены результаты часто оказываются очень похожими.
+                                                При базовых значениях параметров в этих форматах чаще всего побеждает
+                                                честная свинка, а заметную долю побед также получает агрессивная.
                                             </div>
 
                                             <div>
-                                                Эксперимент помогает увидеть уже не один частный пример,
-                                                а устойчивые различия между форматами аукционов.
+                                                Рациональная свинка в этих трёх форматах почти не выигрывает:
+                                                обычно её доля побед равна нулю или появляется крайне редко.
+                                                Если увеличить коэффициент осторожной свинки, у неё тоже может
+                                                появиться небольшая доля побед.
+                                            </div>
+
+                                            <div>
+                                                Аукцион Викри, наоборот, обычно даёт более ровное распределение
+                                                результатов между участниками. Это хорошо показывает, что сами
+                                                правила аукциона сильно влияют на поведение ботов и на итог торгов.
+                                            </div>
+
+                                            <div>
+                                                Поэтому полезно запускать эксперимент несколько раз и смотреть,
+                                                как меняется картина при других параметрах модели.
                                             </div>
                                         </div>
                                     </div>
