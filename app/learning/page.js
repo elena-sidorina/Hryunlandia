@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link"; // чтобы делать переходы между страницами внутри нашего сайтика в Next.js
 
 //тут просто список режимов обуения, я их потом вывожу кнопками на экране 1
@@ -19,10 +19,41 @@ const FORMATS = [
 ];
 
 const PIGS = [
-    { title: "Честная", key: "sh" },
-    { title: "Рациональная", key: "sr" },
-    { title: "Агрессивная", key: "sa" },
-    { title: "Осторожная", key: "so" },
+    { title: "Честная", key: "sh", img: "/pigs/honest_pig.png" },
+    { title: "Рациональная", key: "sr", img: "/pigs/rational_pig.png" },
+    { title: "Агрессивная", key: "sa", img: "/pigs/agressive_pig.png" },
+    { title: "Осторожная", key: "so", img: "/pigs/cautious_pig.png" },
+];
+
+const PIG_DETAILS = [
+    {
+        title: "Честная свинка",
+        img: "/pigs/honest_pig.png",
+        color: "bg-blue-50 border-blue-200",
+        text:
+            "Не видит смысла специально сберегать хрюбли и готова поставить за лот всю свою субъективную оценку. В нашей модели она ставит по оценке во всех типах аукциона.",
+    },
+    {
+        title: "Рациональная свинка",
+        img: "/pigs/rational_pig.png",
+        color: "bg-green-50 border-green-200",
+        text:
+            "Действует осторожно-расчётливо. В английском, голландском и аукционе первой цены она снижает ставку по формуле: при 4 участниках это примерно 75% от субъективной оценки. В Викри не шейдит и ставит по своей оценке.",
+    },
+    {
+        title: "Агрессивная свинка",
+        img: "/pigs/agressive_pig.png",
+        color: "bg-rose-50 border-rose-200",
+        text:
+            "Хочет чаще выигрывать, поэтому обычно ставит близко к своей оценке. В английском, голландском и аукционе первой цены её базовый коэффициент — 0.95, но его можно немного изменить вручную. В Викри она не шейдит и ставит по субъективной оценке.",
+    },
+    {
+        title: "Осторожная свинка",
+        img: "/pigs/cautious_pig.png",
+        color: "bg-yellow-50 border-yellow-200",
+        text:
+            "Боится переплатить, поэтому сильнее занижает ставку и раньше выходит из открытых торгов. Её коэффициент задаётся вручную на этом экране. В Викри она тоже не шейдит и ставит по своей субъективной оценке.",
+    },
 ];
 
 // подробные тексты для пасхалки
@@ -92,6 +123,8 @@ export default function LearningPage() {
     // infoId хранит какрй именно аукцион сейчас показываем в этом окне
     const [infoId, setInfoId] = useState(null);
 
+    const [pigsInfoOpen, setPigsInfoOpen] = useState(false);
+
     // выбранный формат аукциона 
     // экран 4
     const [format, setFormat] = useState("vickrey");
@@ -111,18 +144,63 @@ export default function LearningPage() {
     //экран 7
     const [stats, setStats] = useState(null);
 
+    // для восстановления состояния (для справки)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        if (params.get("restore") !== "1") return;
+
+        const saved = sessionStorage.getItem("learningHelpState");
+        if (!saved) return;
+
+        try {
+            const data = JSON.parse(saved);
+
+            setMode(data.mode ?? null);
+            setX(data.x ?? 120);
+            setYPct(data.yPct ?? 10);
+            setAgr(data.agr ?? 0.95);
+            setOst(data.ost ?? 0.8);
+            setFreeze(data.freeze ?? false);
+            setSeed(data.seed ?? "");
+            setS(data.s ?? null);
+            setGenDone(data.genDone ?? false);
+            setValuationMode(data.valuationMode ?? "auto");
+            setManualDone(data.manualDone ?? false);
+            setFormat(data.format ?? "vickrey");
+
+            setRes(null);
+            setResults(null);
+            setStats(null);
+            setCalcError("");
+
+            setStep(4);
+        } catch (e) {
+            console.log("Не получилось восстановить состояние обучения", e);
+        }
+    }, []);
+
     // нижняя и верхняя границы для оценок свинок
     // считаем от ист ценности x и шума yPct
     const minVal = Math.max(0, Math.round(x - (x * yPct) / 100));
-    const maxVal = Math.min(200, Math.round(x + (x * yPct) / 100));
+    const maxVal = Math.round(x + (x * yPct) / 100);
 
     // тут просто переводим индекс победителя в нормальное имя свинки
     const winnerPig =
         typeof res?.winner === "number" ? PIGS[res.winner] : null;
 
     // нормальное имя победтеля для вывода на экран
-    const winnerLabel =
-        winnerPig?.title ?? res?.winnerTitle ?? res?.winner ?? "—";
+    const winnerLabel = winnerPig
+        ? `${winnerPig.title} свинка`
+        : res?.winnerTitle
+            ? `${res.winnerTitle} свинка`
+            : res?.winner ?? "—";
+
+    // картинка для победителя
+    const winnerImg =
+        winnerPig?.img ??
+        PIGS.find((p) => p.title === res?.winnerTitle)?.img ??
+        null;
 
     // оценка победителя (нужна, чтобы посчитать выигрыш)
     const winnerValue =
@@ -166,6 +244,74 @@ export default function LearningPage() {
         return [1, 2, 3, 4, 5, 6, 7];
     }
 
+    function getBidFormula(p, value, bid) {
+        if (format === "vickrey") {
+            return `ставка = субъективная оценка = ${value}`;
+        }
+        if (p.key === "sh") {
+            return `ставка = ${value}`;
+        }
+        if (p.key === "sr") {
+            return `round(0.75 * ${value}) = ${bid}`;
+        }
+        if (p.key === "sa") {
+            return `round(${agr.toFixed(2)} * ${value}) = ${bid}`;
+        }
+        if (p.key === "so") {
+            return `round(${ost.toFixed(2)} * ${value}) = ${bid}`;
+        }
+        return `ставка = ${bid}`;
+    }
+
+    // красивые карточки создаем
+    function getPigLabel(p) {
+        return `${p.title} свинка`;
+    }
+
+    function formatPigLabel(name) {
+        if (!name || name === "—") return "—";
+        return String(name).includes("свин") ? String(name) : `${name} свинка`;
+    }
+
+    function renderPigCard(p, index, value, subText = null, markWinner = true) {
+        const isWinner = markWinner && res?.winner === index;
+
+        return (
+            <div
+                key={p.key}
+                className={
+                    "relative min-h-[116px] overflow-hidden rounded-xl border p-4 transition " +
+                    (isWinner
+                        ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
+                        : "bg-white")
+                }
+            >
+                <div className="pr-24">
+                    <div className="min-h-[54px] text-sm text-slate-600 leading-snug">
+                        <div>🐽</div>
+                        <div>{getPigLabel(p)}</div>
+                    </div>
+
+                    <div className="text-2xl font-extrabold leading-tight">
+                        {value ?? "—"} <span className="text-base font-semibold">хрюблей</span>
+                    </div>
+
+                    {subText && (
+                        <div className="mt-1 text-xs text-slate-500">
+                            {subText}
+                        </div>
+                    )}
+                </div>
+
+                <img
+                    src={p.img}
+                    alt={getPigLabel(p)}
+                    className="absolute right-3 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full border bg-white object-cover shadow-sm"
+                />
+            </div>
+        );
+    }
+
     //перейти на следующий экран
     function goNext() {
         if (!canNext) return;
@@ -179,11 +325,38 @@ export default function LearningPage() {
 
     // вернуться назад
     function goBack() {
+        if (step === 1) {
+            window.location.href = "/home";
+            return;
+        }
+
         const flow = getFlow(mode);
         const i = flow.indexOf(step);
         if (i === -1) return;
 
         setStep(flow[Math.max(i - 1, 0)]);
+    }
+
+    // ф-ция для сохранения перед переходом в сравку
+    function saveLearningHelpState() {
+        sessionStorage.setItem(
+            "learningHelpState",
+            JSON.stringify({
+                step: 4,
+                mode,
+                x,
+                yPct,
+                agr,
+                ost,
+                freeze,
+                seed,
+                s,
+                genDone,
+                valuationMode,
+                manualDone,
+                format,
+            })
+        );
     }
 
     //полный сброс обучения
@@ -396,6 +569,20 @@ export default function LearningPage() {
         return r.winner ?? "—";
     }
 
+    function getWinnerPigFromResult(r) {
+        if (!r) return null;
+
+        if (typeof r.winner === "number") {
+            return PIGS[r.winner] ?? null;
+        }
+
+        if (r.winnerTitle) {
+            return PIGS.find((p) => p.title === r.winnerTitle) ?? null;
+        }
+
+        return null;
+    }
+
 
     //создаем удобый список карточек для сравнения форматов
     // results приходит с сервера и содержит результаты всех аукционов
@@ -478,6 +665,10 @@ export default function LearningPage() {
     // в эксперименте всегда сравниваем 4 формата
     const EXP_K = 100;
 
+    // проверяем, является ли текущий экран последним для выбранного режима
+    const currentFlow = getFlow(mode);
+    const isLastStep = step === currentFlow[currentFlow.length - 1];
+
     // норм список карточек  со статистикой
     const expCards = stats
         ? [
@@ -524,25 +715,22 @@ export default function LearningPage() {
 
     return (
 
-        <main className="min-h-screen bg-pink-100 p-8">
+        <main className="min-h-screen bg-rose-100 p-8">
 
             <div className="max-w-5xl mx-auto">
 
                 {/* кнопка назад на главную */}
 
-                <a href="/" className="text-green-600">
-
+                <a
+                    href="/"
+                    className="inline-flex items-center rounded-xl bg-white/60 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white/90"
+                >
                     ← На главную
-
                 </a>
 
                 <h1 className="text-3xl font-bold mt-4">
-
                     Режим обучения
-
                 </h1>
-
-                {/* основная белая карточка */}
 
                 <div className="mt-6 bg-white/65 backdrop-blur-lg border rounded-2xl shadow p-6">
 
@@ -662,6 +850,27 @@ export default function LearningPage() {
                                             {p}%
                                         </button>
                                     ))}
+                                </div>
+                            </div>
+
+                            <div className="mt-6 rounded-2xl border border-pink-200 bg-pink-50/70 p-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                    <div>
+                                        <div className="font-semibold text-slate-800">
+                                            Хотите понять, как ведут себя участники?
+                                        </div>
+                                        <div className="mt-1 text-sm text-slate-600">
+                                            Для изучения моделей поведения свинок можно открыть краткую справку по их стратегиям.
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setPigsInfoOpen(true)}
+                                        className="shrink-0 rounded-xl bg-pink-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-600"
+                                    >
+                                        🐽 Познакомиться со свинками
+                                    </button>
                                 </div>
                             </div>
 
@@ -852,9 +1061,10 @@ export default function LearningPage() {
                             <div className="flex items-start justify-between gap-4">
                                 <h2 className="text-xl font-semibold">Теперь выберем формат аукциона</h2>
 
-                                {/* справка — отдельная страница (пока пустая, потом распишем) */}
+                                {/* справка (расписали) */}
                                 <Link
                                     href="/learning/help"
+                                    onClick={saveLearningHelpState}
                                     className="px-3 py-2 rounded-xl border bg-white/70 hover:bg-white text-sm"
                                 >
                                     Справка
@@ -1035,61 +1245,9 @@ export default function LearningPage() {
                                             <div className="text-lg font-bold">Субъективные оценки участников</div>
 
                                             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div
-                                                    className={
-                                                        "rounded-xl border p-4 transition " +
-                                                        (res?.winner === 0
-                                                            ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
-                                                            : "bg-white")
-                                                    }
-                                                >
-                                                    <div className="text-sm text-slate-600">🐽 Честная</div>
-                                                    <div className="text-2xl font-extrabold">
-                                                        {s?.sh ?? "—"} <span className="text-base font-semibold">хрюблей</span>
-                                                    </div>
-                                                </div>
-
-                                                <div
-                                                    className={
-                                                        "rounded-xl border p-4 transition " +
-                                                        (res?.winner === 1
-                                                            ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
-                                                            : "bg-white")
-                                                    }
-                                                >
-                                                    <div className="text-sm text-slate-600">🐽 Рациональная</div>
-                                                    <div className="text-2xl font-extrabold">
-                                                        {s?.sr ?? "—"} <span className="text-base font-semibold">хрюблей</span>
-                                                    </div>
-                                                </div>
-
-                                                <div
-                                                    className={
-                                                        "rounded-xl border p-4 transition " +
-                                                        (res?.winner === 2
-                                                            ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
-                                                            : "bg-white")
-                                                    }
-                                                >
-                                                    <div className="text-sm text-slate-600">🐽 Агрессивная</div>
-                                                    <div className="text-2xl font-extrabold">
-                                                        {s?.sa ?? "—"} <span className="text-base font-semibold">хрюблей</span>
-                                                    </div>
-                                                </div>
-
-                                                <div
-                                                    className={
-                                                        "rounded-xl border p-4 transition " +
-                                                        (res?.winner === 3
-                                                            ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
-                                                            : "bg-white")
-                                                    }
-                                                >
-                                                    <div className="text-sm text-slate-600">🐽 Осторожная</div>
-                                                    <div className="text-2xl font-extrabold">
-                                                        {s?.so ?? "—"} <span className="text-base font-semibold">хрюблей</span>
-                                                    </div>
-                                                </div>
+                                                {PIGS.map((p, i) =>
+                                                    renderPigCard(p, i, s?.[p.key])
+                                                )}
                                             </div>
                                         </div>
 
@@ -1097,98 +1255,52 @@ export default function LearningPage() {
                                         <div className="rounded-2xl border bg-white/70 p-5">
                                             <div className="text-lg font-bold">Как прошли торги</div>
 
-                                            {Array.isArray(res?.log) && res.log.length > 0 ? (
-                                                <div className="mt-3 space-y-2">
-                                                    {res.log.map((line, i) => (
-                                                        <div
-                                                            key={i}
-                                                            className="text-sm text-slate-700 bg-white border rounded-xl px-3 py-2"
-                                                        >
-                                                            {line}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="mt-3 text-sm text-slate-600">
-                                                    {fallbackLog}
-                                                </div>
-                                            )}
-
                                             {res?.bids && Array.isArray(res.bids) && (
                                                 <div className="mt-4">
-                                                    <div className="text-lg font-bold">Максимальные ставки с учётом стратегии</div>
+                                                    <div className="text-base font-bold">
+                                                        Максимальные ставки с учётом стратегии
+                                                    </div>
 
-                                                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        <div
-                                                            className={
-                                                                "rounded-xl border p-4 " +
-                                                                (res?.winner === 0
-                                                                    ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
-                                                                    : "bg-white")
-                                                            }
-                                                        >
-                                                            <div className="text-sm text-slate-600">🐽 Честная</div>
-                                                            <div className="text-2xl font-extrabold">
-                                                                {res.bids[0]} <span className="text-base font-semibold">хрюблей</span>
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-slate-500">
-                                                                ставка = {s?.sh}
-                                                            </div>
-                                                        </div>
-
-                                                        <div
-                                                            className={
-                                                                "rounded-xl border p-4 " +
-                                                                (res?.winner === 1
-                                                                    ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
-                                                                    : "bg-white")
-                                                            }
-                                                        >
-                                                            <div className="text-sm text-slate-600">🐽 Рациональная</div>
-                                                            <div className="text-2xl font-extrabold">
-                                                                {res.bids[1]} <span className="text-base font-semibold">хрюблей</span>
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-slate-500">
-                                                                round(0.75 × {s?.sr}) = {res.bids[1]}
-                                                            </div>
-                                                        </div>
-
-                                                        <div
-                                                            className={
-                                                                "rounded-xl border p-4 " +
-                                                                (res?.winner === 2
-                                                                    ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
-                                                                    : "bg-white")
-                                                            }
-                                                        >
-                                                            <div className="text-sm text-slate-600">🐽 Агрессивная</div>
-                                                            <div className="text-2xl font-extrabold">
-                                                                {res.bids[2]} <span className="text-base font-semibold">хрюблей</span>
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-slate-500">
-                                                                round({agr} × {s?.sa}) = {res.bids[2]}
-                                                            </div>
-                                                        </div>
-
-                                                        <div
-                                                            className={
-                                                                "rounded-xl border p-4 " +
-                                                                (res?.winner === 3
-                                                                    ? "bg-pink-50 border-pink-300 ring-2 ring-pink-200"
-                                                                    : "bg-white")
-                                                            }
-                                                        >
-                                                            <div className="text-sm text-slate-600">🐽 Осторожная</div>
-                                                            <div className="text-2xl font-extrabold">
-                                                                {res.bids[3]} <span className="text-base font-semibold">хрюблей</span>
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-slate-500">
-                                                                round({ost} × {s?.so}) = {res.bids[3]}
-                                                            </div>
-                                                        </div>
+                                                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        {PIGS.map((p, i) =>
+                                                            renderPigCard(
+                                                                p,
+                                                                i,
+                                                                res.bids[i],
+                                                                getBidFormula(p, s?.[p.key], res.bids[i])
+                                                            )
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
+
+                                            <div className="mt-5">
+                                                <div className="text-base font-bold">Ход торгов</div>
+
+                                                {Array.isArray(res?.log) && res.log.length > 0 ? (
+                                                    <div className="mt-3 space-y-2">
+                                                        {res.log
+                                                            .map((line) =>
+                                                                String(line ?? "")
+                                                                    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+                                                                    .trim()
+                                                            )
+                                                            .filter((line) => line.length > 0)
+                                                            .map((line, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="rounded-xl border bg-white px-4 py-3 text-sm"
+                                                                >
+                                                                    {line}
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="mt-3 text-sm text-slate-600">
+                                                        {fallbackLog}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1223,7 +1335,7 @@ export default function LearningPage() {
                                             {/* Мини-вывод */}
                                             <div className="mt-4 text-sm text-slate-700 leading-relaxed">
                                                 {format === "vickrey" &&
-                                                    "В аукционе Викри победитель платит вторую цену, поэтому честная ставка часто безопасна."}
+                                                    "В аукционе Викри победитель платит вторую по величине ставку, поэтому свинкам невыгодно шейдить: они ставят ровно по своей субъективной оценке."}
                                                 {format === "first" &&
                                                     "В аукционе первой цены победитель платит свою ставку, поэтому участники обычно занижают ставки."}
                                                 {format === "english" &&
@@ -1251,7 +1363,7 @@ export default function LearningPage() {
                                                                         : "border-slate-200")
                                                             }
                                                         >
-                                                            <div className="text-sm text-slate-700">{k}</div>
+                                                            <div className="text-sm text-slate-700">{formatPigLabel(k)}</div>
                                                             <div
                                                                 className={
                                                                     "font-bold " +
@@ -1328,97 +1440,146 @@ export default function LearningPage() {
                                     <div className="text-lg font-bold">Субъективные оценки участников</div>
 
                                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div className="rounded-xl border bg-white p-4">
-                                            <div className="text-sm text-slate-600">🐽 Честная</div>
-                                            <div className="text-2xl font-extrabold">
-                                                {s?.sh ?? "—"} <span className="text-base font-semibold">хрюблей</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-xl border bg-white p-4">
-                                            <div className="text-sm text-slate-600">🐽 Рациональная</div>
-                                            <div className="text-2xl font-extrabold">
-                                                {s?.sr ?? "—"} <span className="text-base font-semibold">хрюблей</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-xl border bg-white p-4">
-                                            <div className="text-sm text-slate-600">🐽 Агрессивная</div>
-                                            <div className="text-2xl font-extrabold">
-                                                {s?.sa ?? "—"} <span className="text-base font-semibold">хрюблей</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="rounded-xl border bg-white p-4">
-                                            <div className="text-sm text-slate-600">🐽 Осторожная</div>
-                                            <div className="text-2xl font-extrabold">
-                                                {s?.so ?? "—"} <span className="text-base font-semibold">хрюблей</span>
-                                            </div>
-                                        </div>
+                                        {PIGS.map((p) =>
+                                            renderPigCard(p, -1, s?.[p.key], null, false)
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
+                            {/* ставки с учетом стратегий */}
+                            {s && (
+                                <div className="mt-6 rounded-2xl border bg-white/70 p-5">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <div className="text-lg font-bold">Ставки с учётом стратегий</div>
+                                            <div className="mt-1 text-sm text-slate-600">
+                                                Для английского, голландского и аукциона первой цены. В Викри свинки ставят по своей субъективной оценке.
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 overflow-x-auto">
+                                        <table className="w-full border-collapse text-sm">
+                                            <thead>
+                                                <tr className="border-b text-left">
+                                                    <th className="py-3 pr-4">Свинка</th>
+                                                    <th className="py-3 pr-4">Субъективная оценка</th>
+                                                    <th className="py-3 pr-4">Ставка / порог</th>
+                                                    <th className="py-3 pr-4">Как считается</th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+                                                <tr className="border-b">
+                                                    <td className="py-3 pr-4 font-medium">🐽 Честная</td>
+                                                    <td className="py-3 pr-4">{s.sh}</td>
+                                                    <td className="py-3 pr-4 font-bold">{s.sh}</td>
+                                                    <td className="py-3 pr-4 text-slate-600">ставка = оценка</td>
+                                                </tr>
+
+                                                <tr className="border-b">
+                                                    <td className="py-3 pr-4 font-medium">🐽 Рациональная</td>
+                                                    <td className="py-3 pr-4">{s.sr}</td>
+                                                    <td className="py-3 pr-4 font-bold">{Math.round(0.75 * s.sr)}</td>
+                                                    <td className="py-3 pr-4 text-slate-600">round(0.75 × {s.sr})</td>
+                                                </tr>
+
+                                                <tr className="border-b">
+                                                    <td className="py-3 pr-4 font-medium">🐽 Агрессивная</td>
+                                                    <td className="py-3 pr-4">{s.sa}</td>
+                                                    <td className="py-3 pr-4 font-bold">{Math.round(agr * s.sa)}</td>
+                                                    <td className="py-3 pr-4 text-slate-600">
+                                                        round({agr.toFixed(2)} × {s.sa})
+                                                    </td>
+                                                </tr>
+
+                                                <tr>
+                                                    <td className="py-3 pr-4 font-medium">🐽 Осторожная</td>
+                                                    <td className="py-3 pr-4">{s.so}</td>
+                                                    <td className="py-3 pr-4 font-bold">{Math.round(ost * s.so)}</td>
+                                                    <td className="py-3 pr-4 text-slate-600">
+                                                        round({ost.toFixed(2)} × {s.so})
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* карточки форматов */}
                             {results && (
                                 <>
-                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {compareCards.map((card) => {
                                             const r = card.data;
                                             const winner = getWinnerName(r);
+                                            const winnerPig = getWinnerPigFromResult(r);
                                             const isMaxPrice = r?.price === maxPrice;
                                             const isMaxSubj = r?.subj === maxSubj;
                                             const isOverpay = (r?.exPost ?? 0) < 0;
 
                                             return (
-                                                <div key={card.id} className="rounded-2xl border bg-white/70 p-5">
+                                                <div key={card.id} className="rounded-2xl border bg-white/70 p-4">
                                                     <div className="flex items-start justify-between gap-3">
                                                         <div className="text-lg font-bold">{card.title}</div>
 
-                                                        <div className="flex flex-wrap gap-2 justify-end">
+                                                        <div className="flex flex-wrap gap-1 justify-end">
                                                             {isMaxPrice && (
-                                                                <span className="px-2 py-1 rounded-full text-xs bg-pink-100 text-pink-700 border border-pink-200">
-                                                                    самая высокая цена
+                                                                <span className="px-2 py-1 rounded-full text-[11px] bg-pink-100 text-pink-700 border border-pink-200">
+                                                                    макс. цена
                                                                 </span>
                                                             )}
                                                             {isMaxSubj && (
-                                                                <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 border border-green-200">
+                                                                <span className="px-2 py-1 rounded-full text-[11px] bg-green-100 text-green-700 border border-green-200">
                                                                     макс. выигрыш
                                                                 </span>
                                                             )}
                                                             {isOverpay && (
-                                                                <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 border border-red-200">
+                                                                <span className="px-2 py-1 rounded-full text-[11px] bg-red-100 text-red-700 border border-red-200">
                                                                     переплата
                                                                 </span>
                                                             )}
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-4 space-y-3">
-                                                        <div className="rounded-xl border bg-white p-4">
-                                                            <div className="text-sm text-slate-600">🏆 Победитель</div>
-                                                            <div className="text-2xl font-extrabold">{winner}</div>
-                                                        </div>
+                                                    <div className="mt-3 grid grid-cols-2 xl:grid-cols-[1.35fr_0.75fr_0.75fr_0.75fr] gap-2">
+                                                        <div className="rounded-xl border bg-white p-2.5">
+                                                            <div className="text-xs text-slate-600">Победитель</div>
 
-                                                        <div className="grid grid-cols-2 gap-3">
-                                                            <div className="rounded-xl border bg-white p-4">
-                                                                <div className="text-sm text-slate-600">💰 Цена сделки</div>
-                                                                <div className="text-2xl font-extrabold">
-                                                                    {r?.price ?? "—"}
-                                                                </div>
-                                                            </div>
+                                                            <div className="mt-1.5 flex items-center gap-2">
+                                                                {winnerPig && (
+                                                                    <img
+                                                                        src={winnerPig.img}
+                                                                        alt={`${winnerPig.title} свинка`}
+                                                                        className="h-9 w-9 shrink-0 rounded-full border bg-white object-cover"
+                                                                    />
+                                                                )}
 
-                                                            <div className="rounded-xl border bg-white p-4">
-                                                                <div className="text-sm text-slate-600">📌 Субъективный выигрыш</div>
-                                                                <div className="text-2xl font-extrabold">
-                                                                    {r?.subj ?? "—"}
+                                                                <div className="text-base font-extrabold leading-tight">
+                                                                    {formatPigLabel(winner)}
                                                                 </div>
                                                             </div>
                                                         </div>
 
-                                                        <div className="rounded-xl border bg-white p-4">
-                                                            <div className="text-sm text-slate-600">📌 Ex post выигрыш</div>
-                                                            <div className="text-2xl font-extrabold">
+                                                        <div className="rounded-xl border bg-white p-2.5">
+                                                            <div className="text-xs text-slate-600">Цена</div>
+                                                            <div className="mt-1 text-lg font-extrabold">
+                                                                {r?.price ?? "—"}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="rounded-xl border bg-white p-2.5">
+                                                            <div className="text-xs text-slate-600">π_subj</div>
+                                                            <div className="mt-1 text-lg font-extrabold">
+                                                                {r?.subj ?? "—"}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="rounded-xl border bg-white p-2.5">
+                                                            <div className="text-xs text-slate-600">π_ex</div>
+                                                            <div className="mt-1 text-lg font-extrabold">
                                                                 {r?.exPost ?? "—"}
                                                             </div>
                                                         </div>
@@ -1467,7 +1628,7 @@ export default function LearningPage() {
                                         <div className="mt-4 space-y-2 text-slate-700 leading-relaxed">
                                             <div>
                                                 {sameWinner
-                                                    ? `Во всех форматах победитель совпал: ${getWinnerName(compareCards[0].data)}.`
+                                                    ? `Во всех форматах победитель совпал: ${getWinnerName(compareCards[0].data)} свинка.`
                                                     : "В разных форматах победители могут отличаться, потому что правила аукциона по-разному влияют на стратегии ставок."}
                                             </div>
 
@@ -1505,7 +1666,7 @@ export default function LearningPage() {
                                     <h2 className="text-2xl font-extrabold">Эксперимент: сравнение аукционов</h2>
                                     <div className="mt-2 text-slate-700">
                                         Здесь мы много раз запускаем все 4 формата аукциона и смотрим,
-                                        какие закономерности появляются в среднем
+                                        какие закономерности проявляются
                                     </div>
                                 </div>
 
@@ -1522,9 +1683,7 @@ export default function LearningPage() {
 
                                 <div className="mt-3 space-y-2 text-slate-700 leading-relaxed">
                                     <div>
-                                        Здесь можно много раз запускать эксперимент, а затем возвращаться назад
-                                        и менять параметры модели, чтобы лучше понять, как работают разные
-                                        аукционы и как поведение ботов зависит от настроек.
+                                        Запустите эксперимент несколько раз, а затем вернитесь назад и поменяйте параметры модели, чтобы лучше понять, как работают разные аукционы и как поведение ботов зависит от настроек.
                                     </div>
 
                                     <div>
@@ -1645,33 +1804,42 @@ export default function LearningPage() {
 
                                         <div className="mt-4 space-y-3 text-slate-700 leading-relaxed">
                                             <div>
-                                                Этот формат показывает уже не частный пример, а устойчивые различия
+                                                Этот экран показывает уже не один случайный пример, а более устойчивые различия
                                                 между форматами аукциона на большом числе прогонов.
                                             </div>
 
                                             <div>
-                                                Не трудно заметить, что в английском, голландском
-                                                и аукционе первой цены результаты часто оказываются очень похожими.
-                                                При базовых значениях параметров в этих форматах чаще всего побеждает
-                                                честная свинка, а заметную долю побед также получает агрессивная.
+                                                Голландский аукцион и аукцион первой цены дают одинаковую статистику,
+                                                потому что в нашей модели у них фактически одна и та же стратегическая логика:
+                                                участники ориентируются на свои максимальные ставки с учётом стратегии, и именно
+                                                максимальная такая ставка определяет победителя и цену сделки.
                                             </div>
 
                                             <div>
-                                                Рациональная свинка в этих трёх форматах почти не выигрывает:
-                                                обычно её доля побед равна нулю или появляется крайне редко.
-                                                Если увеличить коэффициент осторожной свинки, у неё тоже может
-                                                появиться небольшая доля побед.
+                                                Английский аукцион отличается: здесь тоже побеждает участник с наибольшей
+                                                максимальной ставкой, но цена обычно ниже, потому что победителю достаточно
+                                                перебить ближайшего конкурента. Поэтому в стандартной ситуации итоговая цена
+                                                равна второй наибольшей максимальной ставке плюс 1 хрюбль.
                                             </div>
 
                                             <div>
-                                                Аукцион Викри, наоборот, обычно даёт более ровное распределение
-                                                результатов между участниками. Это хорошо показывает, что сами
-                                                правила аукциона сильно влияют на поведение ботов и на итог торгов.
+                                                В Викри участники не шейдят ставки, а ставят по своей субъективной оценке.
+                                                Поэтому средняя цена сделки обычно выше, чем в английском аукционе: Викри опирается
+                                                на вторую полную оценку, а английский — на вторую максимальную ставку с учётом стратегии.
+                                                С голландским аукционом и первой ценой сравнение не всегда однозначное: иногда Викри выше,
+                                                иногда ниже, потому что в этих форматах цена определяется максимумом заниженных стратегических ставок.
                                             </div>
 
                                             <div>
-                                                Поэтому полезно запускать эксперимент несколько раз и смотреть,
-                                                как меняется картина при других параметрах модели.
+                                                При базовых параметрах в стратегических форматах чаще всего побеждает честная
+                                                свинка, заметную долю побед получает агрессивная, а рациональная почти не
+                                                выигрывает, потому что сильнее занижает ставку по формуле.
+                                            </div>
+
+                                            <div>
+                                                Поэтому полезно запускать эксперимент несколько раз и менять параметры модели:
+                                                так лучше видно, как правила аукциона и стратегии свинок влияют на цену,
+                                                победителя и риск переплаты.
                                             </div>
                                         </div>
                                     </div>
@@ -1683,36 +1851,34 @@ export default function LearningPage() {
                     {/* кнопки навигации */}
 
                     <div className="mt-6 flex gap-3">
-
                         <button
-
                             onClick={goBack}
-
-                            className="px-4 py-2 border rounded-xl"
-
+                            className="px-4 py-2 rounded-xl border bg-white/70 hover:bg-white"
                         >
-
-                            Назад</button>
-
-                        <button
-
-                            onClick={goNext}
-
-                            className="px-4 py-2 bg-pink-300 rounded-xl"
-
-                        >
-
-                            Дальше
-
+                            Назад
                         </button>
 
+                        {!isLastStep && (
+                            <button
+                                onClick={goNext}
+                                disabled={!canNext}
+                                className={
+                                    "px-4 py-2 rounded-xl transition " +
+                                    (canNext
+                                        ? "bg-pink-300 hover:bg-pink-400"
+                                        : "bg-slate-200 text-slate-500 cursor-not-allowed")
+                                }
+                            >
+                                Дальше
+                            </button>
+                        )}
                     </div>
 
                 </div>
 
             </div>
 
-            {/* модалка-пасхалка: затемнение + окно */}
+            {/* модалка-пасхалка: затемнение+ окно */}
             {
                 infoOpen && (
                     <div className="fixed inset-0 z-50">
@@ -1746,6 +1912,74 @@ export default function LearningPage() {
                     </div>
                 )
             }
+
+            {/* модалка со свинками */}
+            {pigsInfoOpen && (
+                <div className="fixed inset-0 z-50">
+                    <div
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setPigsInfoOpen(false)}
+                    />
+
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border bg-white p-6 shadow-xl">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <div className="text-2xl font-extrabold">
+                                        🐽 Кто участвует в торгах?
+                                    </div>
+                                    <div className="mt-2 max-w-3xl text-sm text-slate-600 leading-relaxed">
+                                        У каждой свинки есть своя субъективная оценка лота и свой стиль поведения.
+                                        В стратегических форматах свинки могут шейдить ставку, а в Викри все ставят
+                                        по своей субъективной оценке.
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setPigsInfoOpen(false)}
+                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                                >
+                                    Закрыть
+                                </button>
+                            </div>
+
+                            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {PIG_DETAILS.map((pig) => (
+                                    <div
+                                        key={pig.title}
+                                        className={`rounded-2xl border p-4 ${pig.color}`}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <img
+                                                src={pig.img}
+                                                alt={pig.title}
+                                                className="h-24 w-24 shrink-0 rounded-full border bg-white object-cover shadow-sm"
+                                            />
+
+                                            <div>
+                                                <div className="text-lg font-extrabold">
+                                                    {pig.title}
+                                                </div>
+                                                <div className="mt-2 text-sm text-slate-700 leading-relaxed">
+                                                    {pig.text}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-5 rounded-2xl border bg-white/80 p-4 text-sm text-slate-700 leading-relaxed">
+                                <span className="font-semibold">Важно:</span>{" "}
+                                коэффициенты агрессивной и осторожной свинки можно менять на экране параметров.
+                                Это позволяет посмотреть, как более рискованное или более осторожное поведение влияет
+                                на победителя, цену сделки и выигрыш.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </main >
     );

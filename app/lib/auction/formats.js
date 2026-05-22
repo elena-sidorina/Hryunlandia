@@ -14,7 +14,7 @@ function roundInt(v) {
 }
 
 // argMaxDet находит индекс максимума
-// если ничья, решаем её детерминированно по seed
+// если ничья, решаем ее детерминированно по seed
 function argMaxDet(values, baseSeed) {
     const maxVal = Math.max(...values);
 
@@ -36,6 +36,23 @@ function secondMaxDet(values, baseSeed) {
     const second = Math.max(...rest);
 
     return { winner, second };
+}
+
+// buildMaxTieLog нужен для ничьей
+function buildMaxTieLog(values, winner, word = "ставку") {
+    const maxVal = Math.max(...values);
+    const tied = [];
+    for (let i = 0; i < values.length; i++) {
+        if (values[i] === maxVal) {
+            tied.push(PIG_NAMES[i]);
+        }
+    }
+
+    if (tied.length <= 1) {
+        return `${PIG_NAMES[winner]} свинка показала наибольшую ${word}.`;
+    }
+
+    return `Свинки ${tied.join(", ")} показали одинаковую наибольшую ${word}. В режиме обучения победитель среди них выбран случайно по seed: ${PIG_NAMES[winner]} свинка забирает лот.`;
 }
 
 // utilities: полезности участников
@@ -65,7 +82,7 @@ export function calcVickrey({ s, x, baseSeed }) {
 
     const log = [
         "Все участники сделали закрытые ставки.",
-        `${PIG_NAMES[winner]} свинка показала наибольшую ставку.`,
+        buildMaxTieLog(vals, winner, "ставку"), ,
         `По правилу Викри победитель платит вторую по величине цену: ${price} хрюблей.`,
     ];
 
@@ -100,7 +117,13 @@ export function calcEnglish({ s, x, agr, ost, baseSeed }) {
     const vals = [s.sh, s.sr, s.sa, s.so];
 
     const winner = argMaxDet(bids, baseSeed);
-    const price = bids[winner];
+
+    const otherBids = bids.filter((_, i) => i !== winner);
+    const secondBid = Math.max(...otherBids);
+
+    // в английском аукционе победителю достаточно перебить второго
+    // если ничья по максимуму, цена не должна становиться выше максимума победителя
+    const price = Math.min(bids[winner], secondBid + 1);
 
     const subj = vals[winner] - price;
     const exPost = x - price;
@@ -110,7 +133,7 @@ export function calcEnglish({ s, x, agr, ost, baseSeed }) {
     const log = [
         "Цена росла, пока в торгах не остался один участник.",
         `${PIG_NAMES[winner]} свинка смогла дольше всех оставаться в торгах.`,
-        `Итоговая цена в нашей модели равна её максимальной ставке: ${price} хрюблей.`,
+        `Ближайший конкурент был готов держаться до ${secondBid} хрюблей, поэтому победитель забирает лот за ${price} хрюблей.`,
     ];
 
     return {
@@ -151,7 +174,8 @@ export function calcFirstPrice({ s, x, agr, ost, baseSeed }) {
 
     const log = [
         "Все участники сделали закрытые ставки.",
-        `${PIG_NAMES[winner]} свинка показала наибольшую ставку.`, `В аукционе первой цены победитель платит свою собственную ставку: ${price} хрюблей.`,
+        buildMaxTieLog(bids, winner, "ставку"),
+        `В аукционе первой цены победитель платит свою собственную ставку: ${price} хрюблей.`,
     ];
 
     return {
@@ -192,7 +216,8 @@ export function calcDutch({ s, x, agr, ost, baseSeed }) {
 
     const log = [
         "Цена постепенно снижалась, пока один из участников не согласился купить.",
-        `${PIG_NAMES[winner]} свинка первой согласилась на цену ${price} хрюблей.`,
+        buildMaxTieLog(thresholds, winner, "пороговую ставку"),
+        `Победитель соглашается купить лот по цене ${price} хрюблей.`,
         "По стратегическому смыслу это близко к аукциону первой цены.",
     ];
 
