@@ -442,6 +442,13 @@ export default function GamePage() {
         lot?.lastUserBid ??
         null;
 
+    // путь к картинке текущ лота
+    // если lotImageId=7, то покажется public/lots/lot7.jpg
+    // в Next путь начинается сразу с /lots
+    const lotImageSrc = lot?.lotImageId
+        ? `/lots/lot${lot.lotImageId}.jpg`
+        : null;
+
     const lotResultAvatar =
         lot?.winner === "user"
             ? "/pigs/user_kitty.png"
@@ -616,18 +623,8 @@ export default function GamePage() {
                                                         : "bg-amber-200/90 border-amber-300 hover:bg-amber-200")
                                                 }
                                             >
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
-                                                    className="absolute right-3 top-3 w-9 h-9 rounded-full border bg-white/70 hover:bg-white flex items-center justify-center"
-                                                    title="Пояснение"
-                                                >
-                                                    ?
-                                                </button>
 
-                                                <div className="pr-12">
+                                                <div>
                                                     <div className="text-lg font-bold">{f.title}</div>
                                                     <div className="mt-2 h-px bg-black/20" />
 
@@ -993,30 +990,54 @@ export default function GamePage() {
                                         {FORMATS.find((f) => f.id === game.format)?.title}
                                     </div>
 
-                                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="rounded-xl border bg-white p-4">
-                                            <div className="text-sm text-slate-600">Ваша оценка</div>
-                                            <div className="text-3xl font-extrabold">{lot.userValue}</div>
+                                    {/* 
+                                        Верхний блок аукциона:
+                                        слева показываем картинку предмета, справа показываем данные игрока
+                                        В открытых аукционах справа две карточки оценка и текущая цена
+                                        В закрытых аукционах только оценка
+                                    */}
+                                    <div className="mt-4 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4 items-stretch">
+                                        {/* картинка лота */}
+                                        {lotImageSrc && (
+                                            <div className="rounded-2xl border bg-white p-2 shadow-sm">
+                                                <img
+                                                    src={lotImageSrc}
+                                                    alt={`Лот ${game.currentLot}`}
+                                                    className="h-full min-h-[190px] w-full rounded-xl object-cover"
+                                                />
+                                            </div>
+                                        )}
 
-                                            {lot.useToken && (
-                                                <div className="mt-2 inline-block rounded-full bg-pink-100 text-pink-700 px-3 py-1 text-xs font-medium">
-                                                    Жетон активен
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {(game.format === "english" || game.format === "dutch") && (
+                                        {/* правая колонка с инфой по лоту */}
+                                        <div className="grid grid-cols-1 gap-4 content-start">
+                                            {/* субъективная оценка игрока */}
                                             <div className="rounded-xl border bg-white p-4">
-                                                <div className="text-sm text-slate-600">Текущая цена</div>
-                                                <div className="text-3xl font-extrabold">{lot.price}</div>
+                                                <div className="text-sm text-slate-600">Ваша оценка</div>
+                                                <div className="text-3xl font-extrabold">{lot.userValue}</div>
 
-                                                {lot.phase === "duel" && (
-                                                    <div className="mt-2 text-sm text-violet-700 font-medium">
-                                                        🔥 Финальная дуэль
+                                                {/* если жетон активен, показываем бейдж */}
+                                                {lot.useToken && (
+                                                    <div className="mt-2 inline-block rounded-full bg-pink-100 text-pink-700 px-3 py-1 text-xs font-medium">
+                                                        Жетон активен
                                                     </div>
                                                 )}
                                             </div>
-                                        )}
+
+                                            {/* текущая цена нужна только в открытых аукционах */}
+                                            {(game.format === "english" || game.format === "dutch") && (
+                                                <div className="rounded-xl border bg-white p-4">
+                                                    <div className="text-sm text-slate-600">Текущая цена</div>
+                                                    <div className="text-3xl font-extrabold">{lot.price}</div>
+
+                                                    {/* в английском аукционе иногда остается дуэль игрока и одной свинки */}
+                                                    {lot.phase === "duel" && (
+                                                        <div className="mt-2 text-sm text-violet-700 font-medium">
+                                                            🔥 Финальная дуэль
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="mt-5 space-y-3">

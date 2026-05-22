@@ -10,11 +10,14 @@ function randInt(rng, lo, hi) {
     return rng.int(lo, hi);
 }
 
-// перемешиваем массив
+// перемешиваем массив по нашему rng (генератор с seed)
+// при одном seed порядок будет повторяться
 function shuffle(arr, rng) {
     const a = [...arr];
 
     for (let i = a.length - 1; i > 0; i--) {
+        // выбираем случайный индекс от 0 до i
+        // потом меняем элементы местами
         const j = randInt(rng, 0, i);
         [a[i], a[j]] = [a[j], a[i]];
     }
@@ -88,6 +91,16 @@ function pickBotTypes(botCount, rng) {
     return picked;
 }
 
+// выбираем картинки лотов для одной серии
+// мешаем все 18, берем только столько, сколько лотов в серии
+function pickLotImages(lots, rng) {
+    // тут создаем массив, это номера файлов lot1.jpg, lot2.jpg ...
+    const all = Array.from({ length: 18 }, (_, i) => i + 1);
+    // shuffle мешает массив по seed, при одном seed порядок будет один
+    // slice(0, lots) берет первые lots штук из уже перемешанного списка
+    return shuffle(all, rng).slice(0, lots);
+}
+
 // стартовая цена в английском
 function englishStartPrice(x, rng) {
     return Math.max(1, x - randInt(rng, 12, 22));
@@ -142,9 +155,19 @@ export function createGameSeries({
     seed,
 }) {
     const baseSeed = Number.isFinite(Number(seed)) ? Number(seed) : Date.now();
+    // создаем генератор случайностей для всей серии
+    // если seed одинаковый, то и серия получится такая же
     const rng = new Rng(baseSeed);
 
+    // заранее выбираем картинки для всех лотов в серии
+    // чтобы в одной серии картинки не повторялись
+    const lotImageOrder = pickLotImages(lots, rng);
+
+    // тут храним скрытые типы свинок
     const botTypes = {};
+
+    // выбираем типы сопергиков
+    // после правки типы могут повторяться, напр две агрессивные свинки
     const picked = pickBotTypes(botCount, rng);
 
     for (let i = 1; i <= botCount; i++) {
@@ -165,13 +188,24 @@ export function createGameSeries({
         tokensLeft: tokens,
         startBank: bank,
         userBank: bank,
+
+        // банки ботов, у каждого сначала такой же банк, как у игрока
         botBanks: Object.fromEntries(
             Array.from({ length: botCount }, (_, i) => [String(i + 1), bank])
         ),
+
         minWins: getMinWins(lots),
         userWins: 0,
         currentLot: 1,
+
+        // порядок картинок лотов на всю серию
+        // напр [12, 3, 8]
+        lotImageOrder,
+
+        // сурытые типы свинок, игрок увидит их только в конце
         botTypes,
+
+        // история всех сыгранных лотов
         history: [],
     };
 }
@@ -192,6 +226,12 @@ export function createLot(game, { useToken = false }) {
 
     const activeBots = Array.from({ length: game.botCount }, (_, i) => String(i + 1));
 
+    // выбираем картинку для определ лота
+    // currentLot начинается с 1, а массивы в js с 0, поэтому пишем -1
+    // если вдруг массива нет,просто берем номер текущего лота
+    const lotImageId =
+        game.lotImageOrder?.[game.currentLot - 1] ?? game.currentLot;
+
     let startPrice = 0;
 
     if (game.format === "english") startPrice = englishStartPrice(x, rng);
@@ -199,6 +239,11 @@ export function createLot(game, { useToken = false }) {
 
     return {
         lotNo: game.currentLot,
+
+        // номер картинки лота
+        // на фронте из этого потом делаем путь /lots/lotN.jpg
+        lotImageId,
+
         x,
         useToken,
         userValue,
