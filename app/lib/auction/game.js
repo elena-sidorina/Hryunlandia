@@ -75,9 +75,17 @@ function genLotValues({ x, yPct, useToken, rng, botCount }) {
 }
 
 // скрытые типы свинок
+// типы могут повторяться
 function pickBotTypes(botCount, rng) {
     const all = ["honest", "aggressive", "rational", "cautious"];
-    return shuffle(all, rng).slice(0, botCount);
+    const picked = [];
+
+    for (let i = 0; i < botCount; i++) {
+        const idx = randInt(rng, 0, all.length - 1);
+        picked.push(all[idx]);
+    }
+
+    return picked;
 }
 
 // стартовая цена в английском

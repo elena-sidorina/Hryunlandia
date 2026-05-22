@@ -20,16 +20,16 @@ export function genValuations({ x, yPct, rng }) {
 
     // генерируем 4 независимые оценки
     // честная
-    const sh = clipInt(rng.int(lo, hi), 0, 200);
+    const sh = clipInt(rng.int(lo, hi), 0, 250);
 
     // агрессивная
-    const sa = clipInt(rng.int(lo, hi), 0, 200);
+    const sa = clipInt(rng.int(lo, hi), 0, 250);
 
     // рациональная
-    const sr = clipInt(rng.int(lo, hi), 0, 200);
+    const sr = clipInt(rng.int(lo, hi), 0, 250);
 
     // осторожная
-    const so = clipInt(rng.int(lo, hi), 0, 200);
+    const so = clipInt(rng.int(lo, hi), 0, 250);
 
     return { sh, sa, sr, so, lo, hi };
 }

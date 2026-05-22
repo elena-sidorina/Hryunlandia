@@ -32,6 +32,51 @@ const BOT_TITLES = {
     cautious: "Осторожная",
 };
 
+const BOT_OPTIONS = [
+    { id: "honest", title: "Честная" },
+    { id: "aggressive", title: "Агрессивная" },
+    { id: "rational", title: "Рациональная" },
+    { id: "cautious", title: "Осторожная" },
+];
+
+const BOT_IMAGES = {
+    honest: "/pigs/honest_pig.png",
+    aggressive: "/pigs/agressive_pig.png",
+    rational: "/pigs/rational_pig.png",
+    cautious: "/pigs/cautious_pig.png",
+};
+
+const GAME_PIG_DETAILS = [
+    {
+        title: "Честная свинка",
+        img: "/pigs/honest_pig.png",
+        color: "bg-blue-50 border-blue-200",
+        text:
+            "Ставит прямо по своей субъективной оценке. Она не видит смысла специально сберегать хрюбли и готова поставить за лот всю сумму, которую сама считает справедливой.",
+    },
+    {
+        title: "Рациональная свинка",
+        img: "/pigs/rational_pig.png",
+        color: "bg-green-50 border-green-200",
+        text:
+            "Аккуратно снижает ставку по формуле. В первой цене, голландском и английском аукционе она обычно ставит примерно 1 − 1/n от своей оценки, где n — число участников. В Викри не шейдит и ставит по оценке.",
+    },
+    {
+        title: "Агрессивная свинка",
+        img: "/pigs/agressive_pig.png",
+        color: "bg-rose-50 border-rose-200",
+        text:
+            "Старается чаще выигрывать и ставит близко к своей оценке. В первой цене, голландском и английском аукционе обычно ориентируется примерно на 95% своей оценки. В английском аукционе иногда делает резкий прыжок ставки на +2 или +3 хрюбля. В Викри не шейдит и ставит по оценке.",
+    },
+    {
+        title: "Осторожная свинка",
+        img: "/pigs/cautious_pig.png",
+        color: "bg-yellow-50 border-yellow-200",
+        text:
+            "Боится переплатить, поэтому сильнее занижает ставку и раньше выходит из открытых торгов. Её цель — сохранить банк и не купить лот слишком дорого. В Викри тоже ставит по своей субъективной оценке.",
+    },
+];
+
 async function apiPost(payload) {
     const r = await fetch("/api/game", {
         method: "POST",
@@ -64,15 +109,21 @@ export default function GamePage() {
     const [game, setGame] = useState(null);
     const [lot, setLot] = useState(null);
     const [summary, setSummary] = useState(null);
+    const [guessMode, setGuessMode] = useState("closed");
+    const [botGuesses, setBotGuesses] = useState({});
+    const [guessesChecked, setGuessesChecked] = useState(false);
+    const [metricInfo, setMetricInfo] = useState(null);
 
     // локальные штучки
     const [userBid, setUserBid] = useState(0);
     const [busy, setBusy] = useState(false);
     const [dutchPaused, setDutchPaused] = useState(false);
+    const [pigsInfoOpen, setPigsInfoOpen] = useState(false);
     const actionLockRef = useRef(false);
     const [quickTipOpen, setQuickTipOpen] = useState(false);
 
     const isOpen = format === "english" || format === "dutch";
+    const seedReady = seed.trim().length > 0;
 
     // если меняем формат, то варианты лотов тоже подстраиваем
     useEffect(() => {
@@ -87,6 +138,8 @@ export default function GamePage() {
 
     // старт серии
     async function startSeries() {
+        if (!seedReady) return;
+
         const data = await apiPost({
             mode: "start",
             format,
@@ -94,13 +147,16 @@ export default function GamePage() {
             botCount,
             yPct,
             tokensEnabled,
-            seed,
+            seed: seed.trim(),
         });
 
         setGame(data.game);
         setLot(null);
         setSummary(null);
         setUserBid(0);
+        setGuessMode("closed");
+        setBotGuesses({});
+        setGuessesChecked(false);
         setScreen("lot_start");
     }
 
@@ -386,10 +442,61 @@ export default function GamePage() {
         lot?.lastUserBid ??
         null;
 
+    const lotResultAvatar =
+        lot?.winner === "user"
+            ? "/pigs/user_kitty.png"
+            : lot?.winner
+                ? "/pigs/mischievous_pig.png"
+                : null;
+
+    const lotResultWinnerText =
+        lot?.winner === "user"
+            ? "Вы"
+            : lot?.winner
+                ? `Свин ${lot.winner}`
+                : "Никто";
+
+    const lotResultMood =
+        lot?.winner === "user"
+            ? (lotResultPiEx < 0
+                ? "Лот оказался убыточным по истинной ценности"
+                : "Лот оказался выгодным по истинной ценности")
+            : lot?.winner
+                ? "Лот забрала скрытая свинка-соперник"
+                : "Лот остался непроданным";
+
+    const metricTexts = {
+        finalValue: {
+            title: "Итоговое состояние по истинной ценности",
+            text: "Это стартовый банк плюс суммарный ex post выигрыш минус штраф. Так мы учитываем не только оставшиеся деньги, но и реальную ценность купленных лотов.",
+        },
+        subj: {
+            title: "Суммарный субъективный выигрыш",
+            text: "Показывает, насколько купленные лоты были выгодны по вашим субъективным оценкам. Считается как сумма: ваша оценка лота минус цена покупки.",
+        },
+        ex: {
+            title: "Суммарный ex post выигрыш",
+            text: "Показывает реальный результат покупок по истинной ценности лотов. Считается как сумма: истинная ценность лота минус цена покупки.",
+        },
+        roi: {
+            title: "ROI по истинной ценности",
+            text: "Показывает доходность покупок относительно потраченной суммы. Если ROI отрицательный, значит по истинной ценности покупки в среднем были невыгодны.",
+        },
+        penalty: {
+            title: "Штраф за пассивность",
+            text: "Если за серию куплено меньше минимального числа лотов, из итогового банка вычитается штраф 100 хрюблей.",
+        },
+    };
+
     return (
-        <main className="min-h-screen bg-pink-100 p-8">
+        <main className="min-h-screen bg-rose-100 p-8">
             <div className="max-w-6xl mx-auto px-6 py-10">
-                <a href="/" className="text-green-700 font-medium">← На главную</a>
+                <a
+                    href="/"
+                    className="inline-flex items-center rounded-xl bg-white/60 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white/90"
+                >
+                    ← На главную
+                </a>
 
                 <h1 className="text-3xl font-bold mt-4">Режим игры</h1>
 
@@ -397,10 +504,10 @@ export default function GamePage() {
 
                     {/* вводный экран */}
                     {screen === "intro" && (
-                        <div className="max-w-3xl">
+                        <div className="w-full">
                             <h2 className="text-2xl font-extrabold">✨ Поздравляем!</h2>
 
-                            <div className="mt-5 space-y-4 text-slate-700 leading-relaxed">
+                            <div className="mt-5 max-w-5xl space-y-5 text-lg text-slate-700 leading-relaxed">
                                 <div>
                                     Свин-аукционер лично пригласил Вас на ежегодный аукцион.
                                 </div>
@@ -478,7 +585,8 @@ export default function GamePage() {
 
                                         <div className="mt-2 text-base text-slate-700 leading-relaxed">
                                             В Хрюнляндии используют 4 формата торгов: два открытых и два закрытых.
-                                            У каждого формата свои правила, темп и оптимальная стратегия.
+                                            У каждого формата свои правила, темп и оптимальная стратегия. Вы не будете знать к какому архетипу
+                                            относятся ваши соперники-свинки, не дайте им себя обмануть.
                                         </div>
                                     </div>
 
@@ -668,14 +776,27 @@ export default function GamePage() {
                                     </div>
 
                                     <div className="mt-6">
-                                        <div className="font-semibold">Seed (необязательно)</div>
+                                        <div className="font-semibold">Seed <span className="text-pink-600">*</span></div>
 
                                         <input
                                             value={seed}
                                             onChange={(e) => setSeed(e.target.value)}
-                                            className="mt-2 w-full border rounded-xl px-4 py-2 bg-white"
+                                            className={
+                                                "mt-2 w-full border rounded-xl px-4 py-2 bg-white " +
+                                                (!seedReady ? "border-pink-300" : "border-slate-300")
+                                            }
                                             placeholder="Например, 123"
                                         />
+
+                                        <div className="mt-2 text-xs text-slate-600">
+                                            Seed нужен, чтобы серия была воспроизводимой: при одном и том же seed можно повторить те же случайные условия.
+                                        </div>
+
+                                        {!seedReady && (
+                                            <div className="mt-1 text-xs text-pink-700">
+                                                Введите seed, чтобы начать серию.
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -721,8 +842,25 @@ export default function GamePage() {
                                         </div>
                                     </div>
 
-                                    <div className="mt-6 text-sm text-slate-600">
-                                        Типы свинок будут скрыты до конца серии.
+                                    <div className="mt-6 rounded-2xl border border-pink-200 bg-pink-50/70 p-4">
+                                        <div className="font-semibold text-slate-800">
+                                            🕵️ Соперники скрыты до конца игры
+                                        </div>
+
+                                        <div className="mt-2 text-sm text-slate-700 leading-relaxed">
+                                            В серии Вы заранее не знаете, с какими типами свинок играете.
+                                            Типы могут повторяться: например, против Вас могут оказаться две
+                                            агрессивные свинки или две осторожные. Попробуйте по ставкам и поведению
+                                            догадаться, кто есть кто: в конце серии будет возможность проверить свою догадку.
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setPigsInfoOpen(true)}
+                                            className="mt-4 rounded-xl bg-pink-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-600"
+                                        >
+                                            🐽 Шпаргалка по свинкам
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -730,7 +868,13 @@ export default function GamePage() {
                             <div className="mt-6 flex gap-3">
                                 <button
                                     onClick={startSeries}
-                                    className="px-5 py-3 rounded-xl bg-pink-500 text-white font-medium hover:bg-pink-600"
+                                    disabled={!seedReady}
+                                    className={
+                                        "px-5 py-3 rounded-xl font-medium transition " +
+                                        (seedReady
+                                            ? "bg-pink-500 text-white hover:bg-pink-600"
+                                            : "bg-slate-200 text-slate-500 cursor-not-allowed")
+                                    }
                                 >
                                     Начать серию
                                 </button>
@@ -1085,63 +1229,185 @@ export default function GamePage() {
                     {/* результат лота */}
                     {screen === "lot_result" && game && lot && (
                         <div>
-                            <h2 className="text-2xl font-bold">Результат лота</h2>
-
-                            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div className="rounded-2xl border bg-white/70 p-5">
-                                    <div className="text-sm text-slate-600">Победитель</div>
-
-                                    <div className="text-3xl font-extrabold">
-                                        {lot.winner === "user"
-                                            ? "🐱 Вы"
-                                            : lot.winner
-                                                ? `🐷 Свин ${lot.winner}`
-                                                : "Никто"}
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-2xl font-bold">Результат лота</h2>
+                                    <div className="mt-1 text-sm text-slate-600">
+                                        Лот {game.currentLot} из {game.lots}
                                     </div>
-
-                                    <div className="mt-5 text-sm text-slate-600">Цена лота</div>
-                                    <div className="text-3xl font-extrabold">{lot.paid}</div>
-
-                                    <div className="mt-5 text-sm text-slate-600">Истинная ценность лота</div>
-                                    <div className="text-2xl font-bold">{lot.x}</div>
-
-                                    <div className="mt-5 text-sm text-slate-600">Ваша субъективная оценка</div>
-                                    <div className="text-2xl font-bold">{lot.userValue}</div>
-
-                                    <div className="mt-5 text-sm text-slate-600">Ваша ставка</div>
-                                    <div className="text-2xl font-bold">
-                                        {lotResultUserBid == null ? "—" : lotResultUserBid}
-                                    </div>
-
-                                    {lot.winner === "user" && (
-                                        <>
-                                            <div className="mt-5 text-sm text-slate-600">Ваш субъективный выигрыш</div>
-                                            <div className="text-2xl font-bold">{lotResultPiSubj}</div>
-
-                                            <div className="mt-5 text-sm text-slate-600">Ваш ex post выигрыш</div>
-                                            <div className="text-2xl font-bold">{lotResultPiEx}</div>
-                                        </>
-                                    )}
                                 </div>
 
-                                <div className="rounded-2xl border bg-white/70 p-5">
-                                    <div className="text-sm text-slate-600">Ваш банк сейчас</div>
-                                    <div className="text-3xl font-extrabold">{lotResultBank}</div>
+                                <div
+                                    className={
+                                        "rounded-full px-4 py-2 text-sm font-semibold border " +
+                                        (lot.winner === "user"
+                                            ? "bg-green-50 text-green-700 border-green-200"
+                                            : lot.winner
+                                                ? "bg-pink-50 text-pink-700 border-pink-200"
+                                                : "bg-slate-50 text-slate-600 border-slate-200")
+                                    }
+                                >
+                                    {lot.winner === "user"
+                                        ? (lotResultPiEx < 0
+                                            ? "Лот оказался убыточным"
+                                            : "Лот оказался выгодным")
+                                        : lot.winner
+                                            ? "Лот забрала свинка"
+                                            : "Лот остался непроданным"}
+                                </div>
+                            </div>
 
-                                    <div className="mt-5 text-sm text-slate-600">Выиграно лотов</div>
-                                    <div className="text-2xl font-bold">
-                                        {lotResultWins} / {game.lots}
+                            <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5">
+                                <div className="rounded-2xl border bg-white/80 p-5 shadow-sm">
+                                    <div className="flex items-center gap-5">
+                                        {(lot.winner === "user" || lot.winner) && (
+                                            <img
+                                                src={lot.winner === "user" ? "/pigs/user_kitty.png" : "/pigs/mischievous_pig.png"}
+                                                alt={lot.winner === "user" ? "Вы" : `Свин ${lot.winner}`}
+                                                className="w-28 h-28 rounded-full object-cover border bg-white shadow-sm"
+                                            />
+                                        )}
+
+                                        <div>
+                                            <div className="text-sm text-slate-600">Победитель</div>
+
+                                            <div className="mt-1 text-4xl font-extrabold leading-tight">
+                                                {lot.winner === "user"
+                                                    ? "Вы"
+                                                    : lot.winner
+                                                        ? `Свин ${lot.winner}`
+                                                        : "Никто"}
+                                            </div>
+
+                                            <div className="mt-3 inline-flex items-center rounded-full bg-pink-50 border border-pink-200 px-3 py-1 text-sm text-pink-700 font-medium">
+                                                Цена лота: {lot.paid} хрюблей
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Истинная ценность лота</div>
+                                            <div className="mt-1 text-3xl font-extrabold">{lot.x}</div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Ваша субъективная оценка</div>
+                                            <div className="mt-1 text-3xl font-extrabold">{lot.userValue}</div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Ваша ставка</div>
+                                            <div className="mt-1 text-3xl font-extrabold">
+                                                {lotResultUserBid == null ? "—" : lotResultUserBid}
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            className={
+                                                "rounded-xl border p-4 " +
+                                                (lot.winner === "user"
+                                                    ? lotResultPiEx < 0
+                                                        ? "bg-red-50 border-red-200"
+                                                        : "bg-green-50 border-green-200"
+                                                    : "bg-white")
+                                            }
+                                        >
+                                            <div className="text-sm text-slate-600">Итог по лоту</div>
+
+                                            <div
+                                                className={
+                                                    "mt-1 text-lg font-bold " +
+                                                    (lot.winner === "user"
+                                                        ? lotResultPiEx < 0
+                                                            ? "text-red-700"
+                                                            : "text-green-700"
+                                                        : "text-slate-700")
+                                                }
+                                            >
+                                                {lot.winner === "user"
+                                                    ? lotResultPiEx < 0
+                                                        ? "Переплата"
+                                                        : "Выгодная покупка"
+                                                    : "Вы не купили лот"}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {lot.winner === "user" && (
-                                        <div className="mt-5 text-slate-700">
-                                            {lotResultPiEx < 0
-                                                ? "Для вас этот лот оказался убыточным по истинной ценности."
-                                                : "Для вас этот лот оказался выгодным по истинной ценности."}
+                                        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div
+                                                className={
+                                                    "rounded-xl border p-4 " +
+                                                    (lotResultPiSubj < 0
+                                                        ? "bg-red-50 border-red-200"
+                                                        : "bg-green-50 border-green-200")
+                                                }
+                                            >
+                                                <div className="text-sm text-slate-600">Ваш субъективный выигрыш</div>
+                                                <div className="mt-1 text-3xl font-extrabold">
+                                                    {lotResultPiSubj}
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                className={
+                                                    "rounded-xl border p-4 " +
+                                                    (lotResultPiEx < 0
+                                                        ? "bg-red-50 border-red-200"
+                                                        : "bg-green-50 border-green-200")
+                                                }
+                                            >
+                                                <div className="text-sm text-slate-600">Ваш ex post выигрыш</div>
+                                                <div className="mt-1 text-3xl font-extrabold">
+                                                    {lotResultPiEx}
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
+                                <div className="rounded-2xl border bg-white/80 p-5 shadow-sm">
+                                    <div className="text-lg font-bold">Состояние серии</div>
+
+                                    <div className="mt-5 grid grid-cols-1 gap-3">
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Ваш банк сейчас</div>
+                                            <div className="mt-1 text-4xl font-extrabold">
+                                                {lotResultBank}
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Выиграно лотов</div>
+                                            <div className="mt-1 text-3xl font-extrabold">
+                                                {lotResultWins} / {game.lots}
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-pink-50 border-pink-200 p-4">
+                                            <div className="text-sm font-semibold text-pink-800">
+                                                Минимум без штрафа
+                                            </div>
+
+                                            <div className="mt-1 text-2xl font-extrabold text-pink-900">
+                                                {game.minWins} лота
+                                            </div>
+
+                                            <div className="mt-2 text-sm text-slate-700">
+                                                Если к концу серии побед будет меньше, появится штраф 100 хрюблей.
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4 text-sm text-slate-700 leading-relaxed">
+                                            {lot.winner === "user"
+                                                ? "Вы забрали этот лот, поэтому цена уже учитывается в банке и итогах серии."
+                                                : lot.winner
+                                                    ? "Этот лот забрала свинка. Ваш банк не изменился."
+                                                    : "Лот никто не купил, поэтому банки участников не изменились."}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="mt-6">
@@ -1167,10 +1433,10 @@ export default function GamePage() {
                                             <th className="py-3 pr-4">Лот</th>
                                             <th className="py-3 pr-4">Победитель</th>
                                             <th className="py-3 pr-4">Цена</th>
-                                            <th className="py-3 pr-4">x</th>
+                                            <th className="py-3 pr-4">Истин. ценность</th>
                                             <th className="py-3 pr-4">Оценка победителя</th>
-                                            <th className="py-3 pr-4">π_subj</th>
-                                            <th className="py-3 pr-4">π_ex</th>
+                                            <th className="py-3 pr-4">Субъект. выигрыш</th>
+                                            <th className="py-3 pr-4">Ex post выигрыш</th>
                                         </tr>
                                     </thead>
 
@@ -1200,27 +1466,309 @@ export default function GamePage() {
                                 <div className="rounded-2xl border bg-white/70 p-5">
                                     <div className="text-lg font-bold">Сводка игрока</div>
 
-                                    <div className="mt-4 space-y-3 text-slate-700">
-                                        <div>Побед: <span className="font-semibold">{game.userWins}</span></div>
-                                        <div>Сумма трат: <span className="font-semibold">{summary.spent}</span></div>
-                                        <div>Суммарный π_subj: <span className="font-semibold">{summary.subj}</span></div>
-                                        <div>Суммарный π_ex: <span className="font-semibold">{summary.ex}</span></div>
-                                        <div>Штраф: <span className="font-semibold">{summary.penalty}</span></div>
-                                        <div>Итоговый банк: <span className="font-semibold">{summary.finalBank}</span></div>
-                                        <div>ROI: <span className="font-semibold">{summary.roi}%</span></div>
+                                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Побед в серии</div>
+                                            <div className="text-2xl font-extrabold">
+                                                {game.userWins} / {game.lots}
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Потрачено на лоты</div>
+                                            <div className="text-2xl font-extrabold">
+                                                {summary.spent} <span className="text-base font-semibold">хрюблей</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Стартовый банк</div>
+                                            <div className="text-2xl font-extrabold">
+                                                {game.startBank} <span className="text-base font-semibold">хрюблей</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <div className="text-sm text-slate-600">Остаток банка</div>
+                                            <div className="text-2xl font-extrabold">
+                                                {summary.finalBank} <span className="text-base font-semibold">хрюблей</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-pink-50 border-pink-200 p-4 sm:col-span-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setMetricInfo(metricTexts.finalValue)}
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                            >
+                                                Итоговое состояние по истинной ценности
+                                            </button>
+
+                                            <div className="text-3xl font-extrabold mt-1">
+                                                {game.startBank + summary.ex - summary.penalty}{" "}
+                                                <span className="text-base font-semibold">хрюблей</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setMetricInfo(metricTexts.subj)}
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                            >
+                                                Суммарный субъективный выигрыш
+                                            </button>
+
+                                            <div className="text-2xl font-extrabold mt-1">
+                                                {summary.subj} <span className="text-base font-semibold">хрюблей</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setMetricInfo(metricTexts.ex)}
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                            >
+                                                Суммарный ex post выигрыш
+                                            </button>
+
+                                            <div className="text-2xl font-extrabold mt-1">
+                                                {summary.ex} <span className="text-base font-semibold">хрюблей</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setMetricInfo(metricTexts.roi)}
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                            >
+                                                ROI по истинной ценности
+                                            </button>
+
+                                            <div className="text-2xl font-extrabold mt-1">
+                                                {summary.roi}%
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border bg-white p-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setMetricInfo(metricTexts.penalty)}
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                            >
+                                                Штраф за пассивность
+                                            </button>
+
+                                            <div className="text-2xl font-extrabold mt-1">
+                                                {summary.penalty} <span className="text-base font-semibold">хрюблей</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div className="rounded-2xl border bg-white/70 p-5">
-                                    <div className="text-lg font-bold">Кто кем оказался</div>
-
-                                    <div className="mt-4 space-y-3">
-                                        {Object.entries(game.botTypes).map(([id, type]) => (
-                                            <div key={id} className="rounded-xl border bg-white px-4 py-3">
-                                                🐷 Свин {id} — <span className="font-semibold">{BOT_TITLES[type]}</span>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div className="text-lg font-bold">Кто кем оказался</div>
+                                            <div className="mt-1 text-sm text-slate-600 leading-relaxed">
+                                                Типы свинок были скрыты всю серию. Можно попробовать угадать их по поведению
+                                                или сразу раскрыть ответы.
                                             </div>
-                                        ))}
+                                        </div>
                                     </div>
+
+                                    {guessMode === "closed" && (
+                                        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setGuessMode("guess");
+                                                    setGuessesChecked(false);
+                                                    setBotGuesses({});
+                                                }}
+                                                className="rounded-xl bg-pink-500 px-4 py-3 text-white font-semibold hover:bg-pink-600 transition"
+                                            >
+                                                🕵️ Попытаться угадать
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setGuessMode("reveal");
+                                                    setGuessesChecked(true);
+                                                }}
+                                                className="rounded-xl border bg-white px-4 py-3 font-semibold hover:bg-slate-50 transition"
+                                            >
+                                                👀 Раскрыть свинок
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {guessMode === "guess" && (
+                                        <div className="mt-5 space-y-3">
+                                            {Object.entries(game.botTypes).map(([id, type]) => {
+                                                const guess = botGuesses[id] ?? "";
+                                                const checked = guessesChecked;
+                                                const isCorrect = checked && guess === type;
+                                                const isWrong = checked && guess !== type;
+
+                                                return (
+                                                    <div
+                                                        key={id}
+                                                        className={
+                                                            "rounded-xl border px-4 py-3 transition " +
+                                                            (isCorrect
+                                                                ? "bg-green-50 border-green-300"
+                                                                : isWrong
+                                                                    ? "bg-red-50 border-red-300"
+                                                                    : "bg-white")
+                                                        }
+                                                    >
+                                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                                            <div className="flex items-center gap-3 font-semibold">
+                                                                {guessesChecked && (
+                                                                    <img
+                                                                        src={BOT_IMAGES[type]}
+                                                                        alt={`${BOT_TITLES[type]} свинка`}
+                                                                        className="h-12 w-12 rounded-full border bg-white object-cover shadow-sm"
+                                                                    />
+                                                                )}
+
+                                                                <div>
+                                                                    Свин {id}
+                                                                </div>
+                                                            </div>
+
+                                                            <select
+                                                                value={guess}
+                                                                disabled={checked}
+                                                                onChange={(e) =>
+                                                                    setBotGuesses((prev) => ({
+                                                                        ...prev,
+                                                                        [id]: e.target.value,
+                                                                    }))
+                                                                }
+                                                                className="rounded-xl border bg-white px-3 py-2 text-sm"
+                                                            >
+                                                                <option value="">Выберите тип</option>
+                                                                {BOT_OPTIONS.map((option) => (
+                                                                    <option key={option.id} value={option.id}>
+                                                                        {option.title}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+
+                                                        {checked && (
+                                                            <div className="mt-3 text-sm">
+                                                                {isCorrect ? (
+                                                                    <span className="font-semibold text-green-700">
+                                                                        Верно! Это {BOT_TITLES[type]} свинка.
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="font-semibold text-red-700">
+                                                                        Неверно. На самом деле это {BOT_TITLES[type]} свинка.
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {!guessesChecked && (
+                                                <div className="flex flex-wrap gap-3 pt-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setGuessesChecked(true)}
+                                                        disabled={
+                                                            Object.keys(game.botTypes).some((id) => !botGuesses[id])
+                                                        }
+                                                        className={
+                                                            "rounded-xl px-4 py-3 font-semibold transition " +
+                                                            (Object.keys(game.botTypes).some((id) => !botGuesses[id])
+                                                                ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                                                                : "bg-pink-500 text-white hover:bg-pink-600")
+                                                        }
+                                                    >
+                                                        Проверить
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setGuessMode("reveal");
+                                                            setGuessesChecked(true);
+                                                        }}
+                                                        className="rounded-xl border bg-white px-4 py-3 font-semibold hover:bg-slate-50 transition"
+                                                    >
+                                                        Сдаться и раскрыть
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {guessesChecked && (
+                                                <div className="mt-4 rounded-xl border bg-white p-4">
+                                                    <div className="font-semibold text-slate-900">
+                                                        Правильные ответы
+                                                    </div>
+
+                                                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                                                        {Object.entries(game.botTypes).map(([id, type]) => (
+                                                            <div
+                                                                key={id}
+                                                                className="flex items-center gap-3 rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                                                            >
+                                                                <img
+                                                                    src={BOT_IMAGES[type]}
+                                                                    alt={`${BOT_TITLES[type]} свинка`}
+                                                                    className="h-12 w-12 rounded-full border bg-white object-cover shadow-sm"
+                                                                />
+
+                                                                <div>
+                                                                    Свин {id} —{" "}
+                                                                    <span className="font-semibold">
+                                                                        {BOT_TITLES[type]} свинка
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {guessMode === "reveal" && (
+                                        <div className="mt-5 space-y-3">
+                                            {Object.entries(game.botTypes).map(([id, type]) => (
+                                                <div
+                                                    key={id}
+                                                    className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3"
+                                                >
+                                                    <img
+                                                        src={BOT_IMAGES[type]}
+                                                        alt={`${BOT_TITLES[type]} свинка`}
+                                                        className="h-12 w-12 rounded-full border bg-white object-cover shadow-sm"
+                                                    />
+
+                                                    <div>
+                                                        Свин {id} —{" "}
+                                                        <span className="font-semibold">
+                                                            {BOT_TITLES[type]} свинка
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            <div className="mt-4 rounded-xl border bg-white p-4 text-sm text-slate-700 leading-relaxed">
+                                                Теперь можно сравнить это с поведением свинок в серии: кто рано пасовал,
+                                                кто ставил близко к оценке, а кто чаще занижал ставку.
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1230,6 +1778,9 @@ export default function GamePage() {
                                         setGame(null);
                                         setLot(null);
                                         setSummary(null);
+                                        setGuessMode("closed");
+                                        setBotGuesses({});
+                                        setGuessesChecked(false);
                                         setScreen("format");
                                     }}
                                     className="px-5 py-3 rounded-xl bg-pink-500 text-white font-medium hover:bg-pink-600"
@@ -1248,6 +1799,104 @@ export default function GamePage() {
                     )}
                 </div>
             </div>
+            {metricInfo && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/30"
+                        onClick={() => setMetricInfo(null)}
+                    />
+
+                    <div className="relative w-full max-w-md rounded-2xl border bg-white p-5 shadow-xl">
+                        <div className="text-lg font-bold">
+                            {metricInfo.title}
+                        </div>
+
+                        <div className="mt-3 text-sm text-slate-700 leading-relaxed">
+                            {metricInfo.text}
+                        </div>
+
+                        <div className="mt-5 flex justify-end">
+                            <button
+                                onClick={() => setMetricInfo(null)}
+                                className="px-4 py-2 rounded-xl bg-pink-500 text-white hover:bg-pink-600"
+                            >
+                                Понятно
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* модалка со свинками */}
+            {pigsInfoOpen && (
+                <div className="fixed inset-0 z-50">
+                    <div
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setPigsInfoOpen(false)}
+                    />
+
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border bg-white p-6 shadow-xl">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <div className="text-2xl font-extrabold">
+                                        🐽 Как распознать свинок?
+                                    </div>
+
+                                    <div className="mt-2 max-w-3xl text-sm text-slate-600 leading-relaxed">
+                                        В игре типы соперников скрыты до конца серии. Наблюдайте за тем,
+                                        как они входят в торги, насколько быстро пасуют и насколько близко
+                                        подходят к своей оценке. Типы могут повторяться, поэтому не факт,
+                                        что против Вас ровно по одной свинке каждого вида.
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setPigsInfoOpen(false)}
+                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                                >
+                                    Закрыть
+                                </button>
+                            </div>
+
+                            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {GAME_PIG_DETAILS.map((pig) => (
+                                    <div
+                                        key={pig.title}
+                                        className={`rounded-2xl border p-4 ${pig.color}`}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            <img
+                                                src={pig.img}
+                                                alt={pig.title}
+                                                className="h-24 w-24 shrink-0 rounded-full border bg-white object-cover shadow-sm"
+                                            />
+
+                                            <div>
+                                                <div className="text-lg font-extrabold">
+                                                    {pig.title}
+                                                </div>
+
+                                                <div className="mt-2 text-sm text-slate-700 leading-relaxed">
+                                                    {pig.text}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-5 rounded-2xl border bg-white/80 p-4 text-sm text-slate-700 leading-relaxed">
+                                <span className="font-semibold">Подсказка для игры:</span>{" "}
+                                в открытых аукционах смотрите, кто долго держится в торгах,
+                                кто пасует рано, а кто резко повышает цену. В закрытых аукционах
+                                чужие ставки не видны, поэтому типы соперников сложнее угадать,
+                                но итоговые победители и цены всё равно дают подсказки.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
