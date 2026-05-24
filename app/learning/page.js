@@ -715,9 +715,9 @@ export default function LearningPage() {
 
     return (
 
-        <main className="min-h-screen bg-rose-100 p-8">
+        <main className="min-h-screen bg-rose-100 px-4 py-6 sm:p-8">
 
-            <div className="max-w-5xl mx-auto">
+            <div className="w-full max-w-3xl mx-auto">
 
                 {/* кнопка назад на главную */}
 
@@ -732,7 +732,7 @@ export default function LearningPage() {
                     Режим обучения
                 </h1>
 
-                <div className="mt-6 bg-white/65 backdrop-blur-lg border rounded-2xl shadow p-6">
+                <div className="mt-6 bg-white/65 backdrop-blur-lg border rounded-2xl shadow p-5 sm:p-8">
 
                     {/* просто показываем номер экрана */}
 
@@ -754,7 +754,7 @@ export default function LearningPage() {
 
                             </h2>
 
-                            <div className="mt-4 grid grid-cols-3 gap-4">
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
 
                                 {MODES.map((m) => (
 

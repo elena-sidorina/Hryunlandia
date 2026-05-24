@@ -496,8 +496,8 @@ export default function GamePage() {
     };
 
     return (
-        <main className="min-h-screen bg-rose-100 p-8">
-            <div className="max-w-6xl mx-auto px-6 py-10">
+        <main className="min-h-screen bg-rose-100 px-4 py-6 sm:p-8">
+            <div className="w-full max-w-3xl mx-auto py-6 sm:py-10">
                 <a
                     href="/"
                     className="inline-flex items-center rounded-xl bg-white/60 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white/90"
@@ -507,7 +507,7 @@ export default function GamePage() {
 
                 <h1 className="text-3xl font-bold mt-4">Режим игры</h1>
 
-                <div className="mt-6 bg-white/80 border rounded-2xl shadow p-6">
+                <div className="mt-6 bg-white/80 border rounded-2xl shadow p-5 sm:p-8">
 
                     {/* вводный экран */}
                     {screen === "intro" && (

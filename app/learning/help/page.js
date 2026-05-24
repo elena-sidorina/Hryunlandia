@@ -131,8 +131,8 @@ const sources = [
 
 export default function LearningHelpPage() {
     return (
-        <main className="min-h-screen bg-pink-100 p-8">
-            <div className="max-w-6xl mx-auto">
+        <main className="min-h-screen bg-rose-100 px-4 py-6 sm:p-8">
+            <div className="w-full max-w-3xl mx-auto">
                 <div className="flex flex-wrap gap-3">
                     <Link
                         href="/learning?restore=1"
