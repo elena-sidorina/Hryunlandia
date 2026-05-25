@@ -1424,7 +1424,7 @@ export default function LearningPage() {
                             )}
 
                             {/* исходные данные */}
-                            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
                                 <div className="rounded-2xl border bg-white/70 p-5">
                                     <div className="text-lg font-bold">Исходные параметры</div>
 
@@ -1436,7 +1436,7 @@ export default function LearningPage() {
                                     </div>
                                 </div>
 
-                                <div className="rounded-2xl border bg-white/70 p-5">
+                                <div className="rounded-2xl border bg-white/70 p-5 lg:col-span-2">
                                     <div className="text-lg font-bold">Субъективные оценки участников</div>
 
                                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
