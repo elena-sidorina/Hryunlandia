@@ -568,7 +568,7 @@ export default function GamePage() {
                                 <div className="space-y-4">
                                     <div>
                                         <div className="flex items-start justify-between gap-3">
-                                            <h2 className="text-2x1 font-semibold">Выберите тип аукциона</h2>
+                                            <h2 className="text-2xl font-semibold">Выберите тип аукциона</h2>
 
                                             <div className="relative shrink-0">
                                                 <button
@@ -636,7 +636,7 @@ export default function GamePage() {
                                                         {f.id === "english" && (
                                                             <>
                                                                 <div>• Свинки перебивают ставки друг друга</div>
-                                                                <div>• Самый динамичный фрмат</div>
+                                                                <div>• Самый динамичный формат</div>
                                                                 <div>• Реалистично передает динамику торгов, как в фильмах</div>
                                                             </>
                                                         )}
@@ -1488,101 +1488,101 @@ export default function GamePage() {
                                     <div className="text-lg font-bold">Сводка игрока</div>
 
                                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div className="rounded-xl border bg-white p-4">
+                                        <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <div className="text-sm text-slate-600">Побед в серии</div>
-                                            <div className="text-2xl font-extrabold">
+                                            <div className="text-2xl font-extrabold text-center w-full">
                                                 {game.userWins} / {game.lots}
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border bg-white p-4">
+                                        <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <div className="text-sm text-slate-600">Потрачено на лоты</div>
-                                            <div className="text-2xl font-extrabold">
+                                            <div className="text-2xl font-extrabold text-center w-full">
                                                 {summary.spent} <span className="text-base font-semibold">хрюблей</span>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border bg-white p-4">
+                                        <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <div className="text-sm text-slate-600">Стартовый банк</div>
-                                            <div className="text-2xl font-extrabold">
+                                            <div className="text-2xl font-extrabold text-center w-full">
                                                 {game.startBank} <span className="text-base font-semibold">хрюблей</span>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border bg-white p-4">
+                                        <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <div className="text-sm text-slate-600">Остаток банка</div>
-                                            <div className="text-2xl font-extrabold">
+                                            <div className="text-2xl font-extrabold text-center w-full">
                                                 {summary.finalBank} <span className="text-base font-semibold">хрюблей</span>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border bg-pink-50 border-pink-200 p-4 sm:col-span-2">
+                                        <div className="rounded-xl border bg-pink-50 border-pink-200 p-4 sm:col-span-2 text-center flex flex-col items-center justify-center">
                                             <button
                                                 type="button"
                                                 onClick={() => setMetricInfo(metricTexts.finalValue)}
-                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4 text-center"
                                             >
                                                 Итоговое состояние по истинной ценности
                                             </button>
 
-                                            <div className="text-3xl font-extrabold mt-1">
+                                            <div className="text-3xl font-extrabold mt-1 text-center w-full">
                                                 {game.startBank + summary.ex - summary.penalty}{" "}
                                                 <span className="text-base font-semibold">хрюблей</span>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border bg-white p-4">
+                                        <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <button
                                                 type="button"
                                                 onClick={() => setMetricInfo(metricTexts.subj)}
-                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4 text-center"
                                             >
                                                 Суммарный субъективный выигрыш
                                             </button>
 
-                                            <div className="text-2xl font-extrabold mt-1">
+                                            <div className="text-2xl font-extrabold mt-1 text-center w-full">
                                                 {summary.subj} <span className="text-base font-semibold">хрюблей</span>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border bg-white p-4">
+                                        <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <button
                                                 type="button"
                                                 onClick={() => setMetricInfo(metricTexts.ex)}
-                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4 text-center"
                                             >
                                                 Суммарный ex post выигрыш
                                             </button>
 
-                                            <div className="text-2xl font-extrabold mt-1">
+                                            <div className="text-2xl font-extrabold mt-1 text-center w-full">
                                                 {summary.ex} <span className="text-base font-semibold">хрюблей</span>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border bg-white p-4">
+                                        <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <button
                                                 type="button"
                                                 onClick={() => setMetricInfo(metricTexts.roi)}
-                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4 text-center"
                                             >
                                                 ROI по истинной ценности
                                             </button>
 
-                                            <div className="text-2xl font-extrabold mt-1">
+                                            <div className="text-2xl font-extrabold mt-1 text-center w-full">
                                                 {summary.roi}%
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border bg-white p-4">
+                                        <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <button
                                                 type="button"
                                                 onClick={() => setMetricInfo(metricTexts.penalty)}
-                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4"
+                                                className="text-sm text-slate-600 underline decoration-dotted underline-offset-4 text-center"
                                             >
                                                 Штраф за пассивность
                                             </button>
 
-                                            <div className="text-2xl font-extrabold mt-1">
+                                            <div className="text-2xl font-extrabold mt-1 text-center w-full">
                                                 {summary.penalty} <span className="text-base font-semibold">хрюблей</span>
                                             </div>
                                         </div>

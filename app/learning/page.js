@@ -1757,43 +1757,46 @@ export default function LearningPage() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        <div className="rounded-xl border bg-white p-4">
+                                                    {/* карточки метрик эксперимента */}
+                                                    {/* на телефоне в 1 колонку, на больших экранах в 2 */}
+                                                    <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                                        <div className="rounded-xl border bg-white p-4 min-w-0">
                                                             <div className="text-sm text-slate-600">Средняя цена сделки</div>
                                                             <div className="text-2xl font-extrabold">
                                                                 {d?.avgPrice ?? "—"}
                                                             </div>
                                                         </div>
 
-                                                        <div className="rounded-xl border bg-white p-4">
+                                                        <div className="rounded-xl border bg-white p-4 min-w-0">
                                                             <div className="text-sm text-slate-600">Средний субъективный выигрыш</div>
                                                             <div className="text-2xl font-extrabold">
                                                                 {d?.avgSubj ?? "—"}
                                                             </div>
                                                         </div>
 
-                                                        <div className="rounded-xl border bg-white p-4">
+                                                        <div className="rounded-xl border bg-white p-4 min-w-0">
                                                             <div className="text-sm text-slate-600">Средний ex post выигрыш</div>
                                                             <div className="text-2xl font-extrabold">
                                                                 {d?.avgExPost ?? "—"}
                                                             </div>
                                                         </div>
 
-                                                        <div className="rounded-xl border bg-white p-4">
+                                                        <div className="rounded-xl border bg-white p-4 min-w-0">
                                                             <div className="text-sm text-slate-600">Доля переплат</div>
                                                             <div className="text-2xl font-extrabold">
                                                                 {d?.overpayRate ?? "—"}
                                                             </div>
                                                         </div>
-
-                                                        {card.id === "vickrey" && (
-                                                            <div className="mt-5 w-full col-span-2 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-800">
-                                                                В аукционе Викри участники не искажают ставки, поэтому распределение побед
-                                                                обычно получается более ровным, чем в стратегических форматах
-                                                            </div>
-                                                        )}
-
                                                     </div>
+
+                                                    {/* блок викри отдельно от сетки, иначе он ломал карточки на телефоне */}
+                                                    {card.id === "vickrey" && (
+                                                        <div className="mt-5 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-800 leading-relaxed">
+                                                            В аукционе Викри участники не искажают ставки, поэтому распределение побед
+                                                            обычно получается более ровным, чем в стратегических форматах.
+                                                        </div>
+                                                    )}
+
                                                 </div>
                                             );
                                         })}
@@ -1914,72 +1917,74 @@ export default function LearningPage() {
             }
 
             {/* модалка со свинками */}
-            {pigsInfoOpen && (
-                <div className="fixed inset-0 z-50">
-                    <div
-                        className="absolute inset-0 bg-black/40"
-                        onClick={() => setPigsInfoOpen(false)}
-                    />
+            {
+                pigsInfoOpen && (
+                    <div className="fixed inset-0 z-50">
+                        <div
+                            className="absolute inset-0 bg-black/40"
+                            onClick={() => setPigsInfoOpen(false)}
+                        />
 
-                    <div className="absolute inset-0 flex items-center justify-center p-4">
-                        <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border bg-white p-6 shadow-xl">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <div className="text-2xl font-extrabold">
-                                        🐽 Кто участвует в торгах?
+                        <div className="absolute inset-0 flex items-center justify-center p-4">
+                            <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border bg-white p-6 shadow-xl">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div className="text-2xl font-extrabold">
+                                            🐽 Кто участвует в торгах?
+                                        </div>
+                                        <div className="mt-2 max-w-3xl text-sm text-slate-600 leading-relaxed">
+                                            У каждой свинки есть своя субъективная оценка лота и свой стиль поведения.
+                                            В стратегических форматах свинки могут шейдить ставку, а в Викри все ставят
+                                            по своей субъективной оценке.
+                                        </div>
                                     </div>
-                                    <div className="mt-2 max-w-3xl text-sm text-slate-600 leading-relaxed">
-                                        У каждой свинки есть своя субъективная оценка лота и свой стиль поведения.
-                                        В стратегических форматах свинки могут шейдить ставку, а в Викри все ставят
-                                        по своей субъективной оценке.
-                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setPigsInfoOpen(false)}
+                                        className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                                    >
+                                        Закрыть
+                                    </button>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => setPigsInfoOpen(false)}
-                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                                >
-                                    Закрыть
-                                </button>
-                            </div>
+                                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {PIG_DETAILS.map((pig) => (
+                                        <div
+                                            key={pig.title}
+                                            className={`rounded-2xl border p-4 ${pig.color}`}
+                                        >
+                                            <div className="flex items-start gap-4">
+                                                <img
+                                                    src={pig.img}
+                                                    alt={pig.title}
+                                                    className="h-24 w-24 shrink-0 rounded-full border bg-white object-cover shadow-sm"
+                                                />
 
-                            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {PIG_DETAILS.map((pig) => (
-                                    <div
-                                        key={pig.title}
-                                        className={`rounded-2xl border p-4 ${pig.color}`}
-                                    >
-                                        <div className="flex items-start gap-4">
-                                            <img
-                                                src={pig.img}
-                                                alt={pig.title}
-                                                className="h-24 w-24 shrink-0 rounded-full border bg-white object-cover shadow-sm"
-                                            />
-
-                                            <div>
-                                                <div className="text-lg font-extrabold">
-                                                    {pig.title}
-                                                </div>
-                                                <div className="mt-2 text-sm text-slate-700 leading-relaxed">
-                                                    {pig.text}
+                                                <div>
+                                                    <div className="text-lg font-extrabold">
+                                                        {pig.title}
+                                                    </div>
+                                                    <div className="mt-2 text-sm text-slate-700 leading-relaxed">
+                                                        {pig.text}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
 
-                            <div className="mt-5 rounded-2xl border bg-white/80 p-4 text-sm text-slate-700 leading-relaxed">
-                                <span className="font-semibold">Важно:</span>{" "}
-                                коэффициенты агрессивной и осторожной свинки можно менять на экране параметров.
-                                Это позволяет посмотреть, как более рискованное или более осторожное поведение влияет
-                                на победителя, цену сделки и выигрыш.
+                                <div className="mt-5 rounded-2xl border bg-white/80 p-4 text-sm text-slate-700 leading-relaxed">
+                                    <span className="font-semibold">Важно:</span>{" "}
+                                    коэффициенты агрессивной и осторожной свинки можно менять на экране параметров.
+                                    Это позволяет посмотреть, как более рискованное или более осторожное поведение влияет
+                                    на победителя, цену сделки и выигрыш.
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
         </main >
     );

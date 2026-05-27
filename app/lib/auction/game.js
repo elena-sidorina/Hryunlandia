@@ -60,7 +60,7 @@ function getNoiseRange(x, yPct) {
 // одна оценка с шумом
 function genOneValue({ x, yPct, rng }) {
     const [lo, hi] = getNoiseRange(x, yPct);
-    return clamp(randInt(rng, lo, hi), 0, 200);
+    return clamp(randInt(rng, lo, hi), 0, 250);
 }
 
 // оценки игрока и свинок на лот
@@ -117,15 +117,13 @@ function dutchStartPrice(x) {
     return 90;
 }
 
-// предел для открытых аукционов
-function getBotOpenLimit(type, s, x) {
+// предел для английского аукциона
+//логика такая же ккак в голландском и первой цене
+function getBotOpenLimit(type, s, n) {
     if (type === "honest") return s;
-    if (type === "rational") return s;
-
-    if (type === "cautious") {
-        const b = Math.max(1, Math.floor(0.01 * x));
-        return s - b;
-    }
+    if (type === "aggressive") return Math.round(0.95 * s);
+    if (type === "cautious") return Math.round(0.8 * s);
+    if (type === "rational") return Math.round((1 - 1 / n) * s);
 
     return s;
 }
@@ -285,41 +283,32 @@ export function createLot(game, { useToken = false }) {
 function getEnglishBotAction({
     type,
     s,
-    x,
+    n,
     price,
     bank,
     rng,
 }) {
+    const lim = Math.min(getBotOpenLimit(type, s, n), bank);
     const nextPrice = price + 1;
 
-    if (bank < nextPrice) {
+    if (nextPrice > lim) {
         return { action: "pass" };
     }
 
     if (type === "aggressive") {
-        if (price >= s) return { action: "pass" };
-
         const doJump = randInt(rng, 1, 100) <= 30;
 
         if (doJump) {
             const jump = randInt(rng, 2, 3);
             const p = price + jump;
 
-            if (p <= s && p <= bank) {
+            if (p <= lim) {
                 return { action: "raise", step: jump };
             }
         }
-
-        return { action: "raise", step: 1 };
     }
 
-    const lim = getBotOpenLimit(type, s, x);
-
-    if (nextPrice <= lim) {
-        return { action: "raise", step: 1 };
-    }
-
-    return { action: "pass" };
+    return { action: "raise", step: 1 };
 }
 
 // движок английского аукциона
@@ -458,7 +447,7 @@ class EnglishLotEngine {
         const botAction = getEnglishBotAction({
             type,
             s,
-            x: this.lot.x,
+            n: this.game.botCount + 1,
             price: this.lot.price,
             bank,
             rng,
@@ -667,7 +656,7 @@ class EnglishLotEngine {
         const botAction = getEnglishBotAction({
             type,
             s,
-            x: this.lot.x,
+            n: this.game.botCount + 1,
             price: this.lot.price,
             bank,
             rng,
