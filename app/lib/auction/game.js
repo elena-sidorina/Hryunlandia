@@ -371,6 +371,30 @@ class EnglishLotEngine {
         return this.lot.leader && this.lot.leader !== "user" && this.getAliveBots().length === 1;
     }
 
+    // проверяем, может ли одна свинка купить по текущ цене
+    finishSingleBotIfPossible(botId) {
+        const type = this.game.botTypes[botId];
+        const s = this.lot.botValues[botId];
+        const bank = this.game.botBanks[botId];
+        const n = this.game.botCount + 1;
+
+        const lim = Math.min(getBotOpenLimit(type, s, n), bank);
+
+        if (this.lot.price <= lim) {
+            return this.finishWithWinner(botId, this.lot.price);
+        }
+
+        this.lot.activeBots = this.lot.activeBots.filter((id) => id !== botId);
+        this.lot.passedBots.push(botId);
+        this.lot.logs.push(`Свин ${botId} спасовал`);
+
+        if (this.lot.leader && this.lot.leader !== botId) {
+            return this.finishWithWinner(this.lot.leader, this.lot.price);
+        }
+
+        return this.finishUnsold();
+    }
+
     // это игрок лидер и все свинки уже выбыли
     userLeaderWinsNow() {
         return this.lot.leader === "user" && this.getAliveBots().length === 0;
@@ -467,10 +491,10 @@ class EnglishLotEngine {
                 return this.getState();
             }
 
-            // если пользователь уже выбыл и остался один бот
+            // если игрок выбыл и осталась одна свинка
             if (!this.lot.userActive && this.getAliveBots().length === 1) {
                 const onlyBot = this.getAliveBots()[0];
-                return this.finishWithWinner(onlyBot, this.lot.price);
+                return this.finishSingleBotIfPossible(onlyBot);
             }
 
             // если свинок не осталось
@@ -503,9 +527,9 @@ class EnglishLotEngine {
             return this.getState();
         }
 
-        // если пользователь выбыл и остался один бот, он победил
+        // если игрок выбыл и осталась одна свинка
         if (!this.lot.userActive && this.getAliveBots().length === 1) {
-            return this.finishWithWinner(botId, this.lot.price);
+            return this.finishSingleBotIfPossible(botId);
         }
 
         // после  повышения сразу новый раунд без лидера
@@ -563,10 +587,10 @@ class EnglishLotEngine {
             this.lot.userActive = false;
             this.lot.logs.push("Вы спасовали");
 
-            // если осталась одна свинка, она победила
+            // если осталась одна свинка, сначала проверяем лимит
             if (this.getAliveBots().length === 1) {
                 const onlyBot = this.getAliveBots()[0];
-                return this.finishWithWinner(onlyBot, this.lot.price);
+                return this.finishSingleBotIfPossible(onlyBot);
             }
 
             // если свинок не осталось, лот непродан
