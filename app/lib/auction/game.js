@@ -103,7 +103,7 @@ function pickLotImages(lots, rng) {
 
 // стартовая цена в английском
 function englishStartPrice(x, rng) {
-    return Math.max(1, x - randInt(rng, 12, 22));
+    return Math.max(1, x - randInt(rng, 16, 25));
 }
 
 // стартовая цена в голландском
