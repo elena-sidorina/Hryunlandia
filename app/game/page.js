@@ -674,17 +674,17 @@ export default function GamePage() {
 
                             <div className="mt-6 flex gap-3">
                                 <button
-                                    onClick={() => setScreen("settings")}
-                                    className="px-5 py-3 rounded-xl bg-pink-500 text-white font-medium hover:bg-pink-600"
-                                >
-                                    Дальше
-                                </button>
-
-                                <button
                                     onClick={() => setScreen("intro")}
                                     className="px-5 py-3 rounded-xl border bg-white/70 hover:bg-white"
                                 >
                                     Назад
+                                </button>
+
+                                <button
+                                    onClick={() => setScreen("settings")}
+                                    className="px-5 py-3 rounded-xl bg-pink-500 text-white font-medium hover:bg-pink-600"
+                                >
+                                    Дальше
                                 </button>
                             </div>
                         </div>
@@ -864,6 +864,13 @@ export default function GamePage() {
 
                             <div className="mt-6 flex gap-3">
                                 <button
+                                    onClick={() => setScreen("format")}
+                                    className="px-5 py-3 rounded-xl border bg-white/70 hover:bg-white"
+                                >
+                                    Назад
+                                </button>
+
+                                <button
                                     onClick={startSeries}
                                     disabled={!seedReady}
                                     className={
@@ -874,13 +881,6 @@ export default function GamePage() {
                                     }
                                 >
                                     Начать серию
-                                </button>
-
-                                <button
-                                    onClick={() => setScreen("format")}
-                                    className="px-5 py-3 rounded-xl border bg-white/70 hover:bg-white"
-                                >
-                                    Назад
                                 </button>
                             </div>
                         </div>
