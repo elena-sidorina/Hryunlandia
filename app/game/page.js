@@ -1497,22 +1497,25 @@ export default function GamePage() {
 
                                         <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <div className="text-sm text-slate-600">Потрачено на лоты</div>
-                                            <div className="text-2xl font-extrabold text-center w-full">
-                                                {summary.spent} <span className="text-base font-semibold">хрюблей</span>
+                                            <div className="mt-1 w-full text-center">
+                                                <div className="text-2xl font-extrabold">{summary.spent}</div>
+                                                <div className="text-base font-semibold">хрюблей</div>
                                             </div>
                                         </div>
 
                                         <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <div className="text-sm text-slate-600">Стартовый банк</div>
-                                            <div className="text-2xl font-extrabold text-center w-full">
-                                                {game.startBank} <span className="text-base font-semibold">хрюблей</span>
+                                            <div className="mt-1 w-full text-center">
+                                                <div className="text-2xl font-extrabold">{game.startBank}</div>
+                                                <div className="text-base font-semibold">хрюблей</div>
                                             </div>
                                         </div>
 
                                         <div className="rounded-xl border bg-white p-4 text-center flex flex-col items-center justify-center">
                                             <div className="text-sm text-slate-600">Остаток банка</div>
-                                            <div className="text-2xl font-extrabold text-center w-full">
-                                                {summary.finalBank} <span className="text-base font-semibold">хрюблей</span>
+                                            <div className="mt-1 w-full text-center">
+                                                <div className="text-2xl font-extrabold">{summary.finalBank}</div>
+                                                <div className="text-base font-semibold">хрюблей</div>
                                             </div>
                                         </div>
 
@@ -1525,9 +1528,11 @@ export default function GamePage() {
                                                 Итоговое состояние по истинной ценности
                                             </button>
 
-                                            <div className="text-3xl font-extrabold mt-1 text-center w-full">
-                                                {game.startBank + summary.ex - summary.penalty}{" "}
-                                                <span className="text-base font-semibold">хрюблей</span>
+                                            <div className="mt-1 w-full text-center">
+                                                <div className="text-3xl font-extrabold">
+                                                    {game.startBank + summary.ex - summary.penalty}
+                                                </div>
+                                                <div className="text-base font-semibold">хрюблей</div>
                                             </div>
                                         </div>
 
@@ -1540,8 +1545,9 @@ export default function GamePage() {
                                                 Суммарный субъективный выигрыш
                                             </button>
 
-                                            <div className="text-2xl font-extrabold mt-1 text-center w-full">
-                                                {summary.subj} <span className="text-base font-semibold">хрюблей</span>
+                                            <div className="mt-1 w-full text-center">
+                                                <div className="text-2xl font-extrabold">{summary.subj}</div>
+                                                <div className="text-base font-semibold">хрюблей</div>
                                             </div>
                                         </div>
 
@@ -1554,8 +1560,9 @@ export default function GamePage() {
                                                 Суммарный ex post выигрыш
                                             </button>
 
-                                            <div className="text-2xl font-extrabold mt-1 text-center w-full">
-                                                {summary.ex} <span className="text-base font-semibold">хрюблей</span>
+                                            <div className="mt-1 w-full text-center">
+                                                <div className="text-2xl font-extrabold">{summary.ex}</div>
+                                                <div className="text-base font-semibold">хрюблей</div>
                                             </div>
                                         </div>
 
@@ -1582,8 +1589,9 @@ export default function GamePage() {
                                                 Штраф за пассивность
                                             </button>
 
-                                            <div className="text-2xl font-extrabold mt-1 text-center w-full">
-                                                {summary.penalty} <span className="text-base font-semibold">хрюблей</span>
+                                            <div className="mt-1 w-full text-center">
+                                                <div className="text-2xl font-extrabold">{summary.penalty}</div>
+                                                <div className="text-base font-semibold">хрюблей</div>
                                             </div>
                                         </div>
                                     </div>
