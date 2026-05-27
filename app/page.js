@@ -1,6 +1,15 @@
 export default function IntroPage() {
   return (
-    <main className="min-h-screen bg-[url('/castle-bg.jpg')] bg-cover bg-center flex items-center justify-center p-6">
+    <main className="relative min-h-screen bg-[url('/castle-bg.jpg')] bg-cover bg-center flex items-center justify-center p-6">
+      <a
+        href="https://github.com/elena-sidorina/Hryunlandia"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute right-6 top-6 inline-flex items-center rounded-xl bg-white/60 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white/90"
+      >
+        О проекте
+      </a>
+
       <div className="max-w-3xl w-full bg-white/50 backdrop-blur-md rounded-2xl shadow-xl p-8">
         <h1 className="text-4xl font-bold text-center">🏰 Хрюнляндия</h1>
 
