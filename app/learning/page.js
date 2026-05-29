@@ -72,7 +72,7 @@ const FORMAT_DETAILS = {
     first: {
         title: "Аукцион первой цены (закрытый)",
         about:
-            "Закрытые ставки: каждый отправляет свою ставку тайно. Побеждает максимальная ставка и она же платится. Часто выгодно “шэйдить” (занижать) ставку относительно своей оценки, чтобы не переплатить.",
+            "Закрытые ставки: каждый отправляет свою ставку тайно. Побеждает максимальная ставка и она же платится. Часто выгодно шейдить ставку относительно своей оценки, чтобы не переплатить.",
     },
     vickrey: {
         title: "Аукцион Викри (закрытый, 2-я цена)",
@@ -124,6 +124,8 @@ export default function LearningPage() {
     const [infoId, setInfoId] = useState(null);
 
     const [pigsInfoOpen, setPigsInfoOpen] = useState(false);
+
+    const [shadeInfoOpen, setShadeInfoOpen] = useState(false);
 
     // выбранный формат аукциона 
     // экран 4
@@ -310,6 +312,26 @@ export default function LearningPage() {
                 />
             </div>
         );
+    }
+
+    // делаем слово "шейдить" кликабельным
+    function renderShadeText(text) {
+        return text.split(/(шейдить|шейдит|шейдят)/gi).map((part, i) => {
+            const isShade = ["шейдить", "шейдит", "шейдят"].includes(part.toLowerCase());
+
+            if (!isShade) return part;
+
+            return (
+                <button
+                    key={i}
+                    type="button"
+                    onClick={() => setShadeInfoOpen(true)}
+                    className="font-semibold text-pink-600 underline decoration-dotted underline-offset-4 hover:text-pink-700"
+                >
+                    {part}
+                </button>
+            );
+        });
     }
 
     //перейти на следующий экран
@@ -1335,7 +1357,7 @@ export default function LearningPage() {
                                             {/* Мини-вывод */}
                                             <div className="mt-4 text-sm text-slate-700 leading-relaxed">
                                                 {format === "vickrey" &&
-                                                    "В аукционе Викри победитель платит вторую по величине ставку, поэтому свинкам невыгодно шейдить: они ставят ровно по своей субъективной оценке."}
+                                                    renderShadeText("В аукционе Викри победитель платит вторую по величине ставку, поэтому свинкам невыгодно шейдить: они ставят ровно по своей субъективной оценке.")}
                                                 {format === "first" &&
                                                     "В аукционе первой цены победитель платит свою ставку, поэтому участники обычно занижают ставки."}
                                                 {format === "english" &&
@@ -1826,11 +1848,9 @@ export default function LearningPage() {
                                             </div>
 
                                             <div>
-                                                В Викри участники не шейдят ставки, а ставят по своей субъективной оценке.
-                                                Поэтому средняя цена сделки обычно выше, чем в английском аукционе: Викри опирается
-                                                на вторую полную оценку, а английский — на вторую максимальную ставку с учётом стратегии.
-                                                С голландским аукционом и первой ценой сравнение не всегда однозначное: иногда Викри выше,
-                                                иногда ниже, потому что в этих форматах цена определяется максимумом заниженных стратегических ставок.
+                                                {renderShadeText(
+                                                    "В Викри участники не шейдят ставки, а ставят по своей субъективной оценке. Поэтому средняя цена сделки обычно выше, чем в английском аукционе: Викри опирается на вторую полную оценку, а английский — на вторую максимальную ставку с учётом стратегии. С голландским аукционом и первой ценой сравнение не всегда однозначное: иногда Викри выше, иногда ниже, потому что в этих форматах цена определяется максимумом заниженных стратегических ставок."
+                                                )}
                                             </div>
 
                                             <div>
@@ -1899,7 +1919,7 @@ export default function LearningPage() {
                                 </div>
 
                                 <div className="mt-3 text-slate-700 leading-relaxed">
-                                    {FORMAT_DETAILS[infoId]?.about ?? "Пока нет текста."}
+                                    {renderShadeText(FORMAT_DETAILS[infoId]?.about ?? "Пока нет текста.")}
                                 </div>
 
                                 <div className="mt-6 flex justify-end">
@@ -1933,9 +1953,10 @@ export default function LearningPage() {
                                             🐽 Кто участвует в торгах?
                                         </div>
                                         <div className="mt-2 max-w-3xl text-sm text-slate-600 leading-relaxed">
-                                            У каждой свинки есть своя субъективная оценка лота и свой стиль поведения.
-                                            В стратегических форматах свинки могут шейдить ставку, а в Викри все ставят
-                                            по своей субъективной оценке.
+                                            У каждой свинки есть своя субъективная оценка лота и свой стиль поведения.{" "}
+                                            {renderShadeText(
+                                                "В стратегических форматах свинки могут шейдить ставку, а в Викри все ставят по своей субъективной оценке."
+                                            )}
                                         </div>
                                     </div>
 
@@ -1966,7 +1987,7 @@ export default function LearningPage() {
                                                         {pig.title}
                                                     </div>
                                                     <div className="mt-2 text-sm text-slate-700 leading-relaxed">
-                                                        {pig.text}
+                                                        {renderShadeText(pig.text)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1985,6 +2006,67 @@ export default function LearningPage() {
                     </div>
                 )
             }
+
+            {/* модалка про шейдинг */}
+            {shadeInfoOpen && (
+                <div className="fixed inset-0 z-50">
+                    <div
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setShadeInfoOpen(false)}
+                    />
+
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <div className="w-full max-w-2xl rounded-3xl border bg-white p-6 shadow-xl">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <div className="text-2xl font-extrabold">
+                                        Что значит шейдить?
+                                    </div>
+
+                                    <div className="mt-3 space-y-3 text-sm text-slate-700 leading-relaxed">
+                                        <p>
+                                            Шейдить - это от английского bid shading, то есть занижать
+                                            ставку относительно своей оценки лота.
+                                        </p>
+
+                                        <p>
+                                            Например, свинка оценивает лот в 100 хрюблей. Если она
+                                            является осторожной, то она шейдит и ставит:
+                                        </p>
+
+                                        <div className="rounded-2xl border bg-pink-50 p-4 font-semibold text-slate-800">
+                                            0.8*100=80 хрюблей
+                                        </div>
+
+                                        <p>
+                                            Зачем шейдить: чтобы не просто выиграть лот, а ещё и оставить
+                                            себе выгоду. Потому что если участник оценивает лот в 100 и
+                                            платит 100, его выигрыш примерно 0.
+                                        </p>
+
+                                        <p>
+                                            А если он оценивает лот в 100, но покупает за 80, то
+                                            субъективный выигрыш равен:
+                                        </p>
+
+                                        <div className="rounded-2xl border bg-green-50 p-4 font-semibold text-slate-800">
+                                            100-80=20 хрюблей
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShadeInfoOpen(false)}
+                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                                >
+                                    Закрыть
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </main >
     );

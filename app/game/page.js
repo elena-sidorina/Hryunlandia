@@ -119,6 +119,9 @@ export default function GamePage() {
     const [busy, setBusy] = useState(false);
     const [dutchPaused, setDutchPaused] = useState(false);
     const [pigsInfoOpen, setPigsInfoOpen] = useState(false);
+
+    const [shadeInfoOpen, setShadeInfoOpen] = useState(false);
+
     const actionLockRef = useRef(false);
     const [quickTipOpen, setQuickTipOpen] = useState(false);
 
@@ -495,6 +498,26 @@ export default function GamePage() {
         },
     };
 
+    // делаем слово "шейдить" кликабельным
+    function renderShadeText(text) {
+        return text.split(/(шейдить|шейдит|шейдят)/gi).map((part, i) => {
+            const isShade = ["шейдить", "шейдит", "шейдят"].includes(part.toLowerCase());
+
+            if (!isShade) return part;
+
+            return (
+                <button
+                    key={i}
+                    type="button"
+                    onClick={() => setShadeInfoOpen(true)}
+                    className="font-semibold text-pink-600 underline decoration-dotted underline-offset-4 hover:text-pink-700"
+                >
+                    {part}
+                </button>
+            );
+        });
+    }
+
     return (
         <main className="min-h-screen bg-rose-100 px-4 py-6 sm:p-8">
             <div className="w-full max-w-3xl mx-auto py-6 sm:py-10">
@@ -583,7 +606,9 @@ export default function GamePage() {
                                                     <div className="absolute right-0 mt-2 w-80 rounded-xl border bg-white shadow-lg p-4 z-20">
                                                         <div className="text-sm text-slate-700 leading-relaxed">
                                                             В английском не спешите переплачивать, в голландском заранее
-                                                            определите порог, в первой цене шейдите ставку, а в Викри выгодно ставить по своей оценке.
+                                                            определите порог, в первой цене{" "}
+                                                            {renderShadeText("шейдите")}
+                                                            {" "}ставку, а в Викри выгодно ставить по своей оценке.
                                                         </div>
                                                     </div>
                                                 )}
@@ -1907,7 +1932,7 @@ export default function GamePage() {
                                                 </div>
 
                                                 <div className="mt-2 text-sm text-slate-700 leading-relaxed">
-                                                    {pig.text}
+                                                    {renderShadeText(pig.text)}
                                                 </div>
                                             </div>
                                         </div>
@@ -1921,6 +1946,66 @@ export default function GamePage() {
                                 кто пасует рано, а кто резко повышает цену. В закрытых аукционах
                                 чужие ставки не видны, поэтому типы соперников сложнее угадать,
                                 но итоговые победители и цены всё равно дают подсказки.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* модалка про шейдинг */}
+            {shadeInfoOpen && (
+                <div className="fixed inset-0 z-50">
+                    <div
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setShadeInfoOpen(false)}
+                    />
+
+                    <div className="absolute inset-0 flex items-center justify-center p-4">
+                        <div className="w-full max-w-2xl rounded-3xl border bg-white p-6 shadow-xl">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <div className="text-2xl font-extrabold">
+                                        Что значит шейдить?
+                                    </div>
+
+                                    <div className="mt-3 space-y-3 text-sm text-slate-700 leading-relaxed">
+                                        <p>
+                                            Шейдить - это от английского bid shading, то есть занижать
+                                            ставку относительно своей оценки лота.
+                                        </p>
+
+                                        <p>
+                                            Например, свинка оценивает лот в 100 хрюблей. Если она
+                                            является осторожной, то она шейдит и ставит:
+                                        </p>
+
+                                        <div className="rounded-2xl border bg-pink-50 p-4 font-semibold text-slate-800">
+                                            0.8*100=80 хрюблей
+                                        </div>
+
+                                        <p>
+                                            Зачем шейдить: чтобы не просто выиграть лот, а ещё и оставить
+                                            себе выгоду. Потому что если участник оценивает лот в 100 и
+                                            платит 100, его выигрыш примерно 0.
+                                        </p>
+
+                                        <p>
+                                            А если он оценивает лот в 100, но покупает за 80, то
+                                            субъективный выигрыш равен:
+                                        </p>
+
+                                        <div className="rounded-2xl border bg-green-50 p-4 font-semibold text-slate-800">
+                                            100-80=20 хрюблей
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShadeInfoOpen(false)}
+                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                                >
+                                    Закрыть
+                                </button>
                             </div>
                         </div>
                     </div>

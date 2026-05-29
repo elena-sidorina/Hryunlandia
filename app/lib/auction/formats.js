@@ -82,7 +82,7 @@ export function calcVickrey({ s, x, baseSeed }) {
 
     const log = [
         "Все участники сделали закрытые ставки.",
-        buildMaxTieLog(vals, winner, "ставку"), ,
+        buildMaxTieLog(vals, winner, "ставку"),
         `По правилу Викри победитель платит вторую по величине цену: ${price} хрюблей.`,
     ];
 

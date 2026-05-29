@@ -139,10 +139,10 @@ export async function POST(req) {
             // если оценки пришли из фронта, используем их
             if (body.s && typeof body.s === "object") {
 
-                const sh = clampInt(body.s.sh, 0, 200, 0);
-                const sa = clampInt(body.s.sa, 0, 200, 0);
-                const sr = clampInt(body.s.sr, 0, 200, 0);
-                const so = clampInt(body.s.so, 0, 200, 0);
+                const sh = clampInt(body.s.sh, 0, 250, 0);
+                const sa = clampInt(body.s.sa, 0, 250, 0);
+                const sr = clampInt(body.s.sr, 0, 250, 0);
+                const so = clampInt(body.s.so, 0, 250, 0);
 
                 return { sh, sa, sr, so };
             }
