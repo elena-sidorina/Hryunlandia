@@ -275,6 +275,13 @@ export default function LearningPage() {
         return String(name).includes("свин") ? String(name) : `${name} свинка`;
     }
 
+    function renderPigName(name) {
+        return String(name || "")
+            .replace("Рациональная", "Рацио\u00ADнальная")
+            .replace("Агрессивная", "Агрес\u00ADсивная")
+            .replace("Осторожная", "Осторож\u00ADная");
+    }
+
     function renderPigCard(p, index, value, subText = null, markWinner = true) {
         const isWinner = markWinner && res?.winner === index;
 
@@ -291,7 +298,9 @@ export default function LearningPage() {
                 <div className="min-w-0 pr-20 sm:pr-24">
                     <div className="min-h-[54px] text-xs sm:text-sm text-slate-600 leading-tight break-words">
                         <div>🐽</div>
-                        <div>{getPigLabel(p)}</div>
+                        <div className="hyphens-auto break-words">
+                            {renderPigName(getPigLabel(p))}
+                        </div>
                     </div>
 
                     <div className="text-xl sm:text-2xl font-extrabold leading-tight break-words">
@@ -1334,8 +1343,8 @@ export default function LearningPage() {
 
                                             <div className="mt-4 rounded-xl bg-pink-50 border border-pink-200 p-4">
                                                 <div className="text-sm text-slate-600">🏆 Победитель</div>
-                                                <div className="text-2xl font-extrabold">
-                                                    {winnerLabel}
+                                                <div className="text-2xl font-extrabold leading-tight hyphens-auto break-words">
+                                                    {renderPigName(winnerLabel)}
                                                 </div>
 
                                                 <div className="mt-3 text-sm text-slate-600">💰 Цена сделки</div>
@@ -1579,8 +1588,8 @@ export default function LearningPage() {
                                                                     />
                                                                 )}
 
-                                                                <div className="text-base font-extrabold leading-tight">
-                                                                    {formatPigLabel(winner)}
+                                                                <div className="text-base font-extrabold leading-tight hyphens-auto break-words">
+                                                                    {renderPigName(formatPigLabel(winner))}
                                                                 </div>
                                                             </div>
                                                         </div>
