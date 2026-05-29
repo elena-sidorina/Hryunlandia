@@ -288,14 +288,14 @@ export default function LearningPage() {
                         : "bg-white")
                 }
             >
-                <div className="pr-24">
-                    <div className="min-h-[54px] text-sm text-slate-600 leading-snug">
+                <div className="min-w-0 pr-20 sm:pr-24">
+                    <div className="min-h-[54px] text-xs sm:text-sm text-slate-600 leading-tight break-words">
                         <div>🐽</div>
                         <div>{getPigLabel(p)}</div>
                     </div>
 
-                    <div className="text-2xl font-extrabold leading-tight">
-                        {value ?? "—"} <span className="text-base font-semibold">хрюблей</span>
+                    <div className="text-xl sm:text-2xl font-extrabold leading-tight break-words">
+                        {value ?? "—"} <span className="text-sm sm:text-base font-semibold">хрюблей</span>
                     </div>
 
                     {subText && (
@@ -308,7 +308,7 @@ export default function LearningPage() {
                 <img
                     src={p.img}
                     alt={getPigLabel(p)}
-                    className="absolute right-3 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full border bg-white object-cover shadow-sm"
+                    className="absolute right-3 top-1/2 h-16 w-16 sm:h-20 sm:w-20 -translate-y-1/2 rounded-full border bg-white object-cover shadow-sm"
                 />
             </div>
         );
@@ -1566,8 +1566,8 @@ export default function LearningPage() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-3 grid grid-cols-2 xl:grid-cols-[1.35fr_0.75fr_0.75fr_0.75fr] gap-2">
-                                                        <div className="rounded-xl border bg-white p-2.5">
+                                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                                        <div className="col-span-2 rounded-xl border bg-white p-2.5 min-w-0">
                                                             <div className="text-xs text-slate-600">Победитель</div>
 
                                                             <div className="mt-1.5 flex items-center gap-2">
@@ -1585,21 +1585,21 @@ export default function LearningPage() {
                                                             </div>
                                                         </div>
 
-                                                        <div className="rounded-xl border bg-white p-2.5">
+                                                        <div className="rounded-xl border bg-white p-2.5 min-w-0">
                                                             <div className="text-xs text-slate-600">Цена</div>
                                                             <div className="mt-1 text-lg font-extrabold">
                                                                 {r?.price ?? "—"}
                                                             </div>
                                                         </div>
 
-                                                        <div className="rounded-xl border bg-white p-2.5">
+                                                        <div className="rounded-xl border bg-white p-2.5 min-w-0">
                                                             <div className="text-xs text-slate-600">π_subj</div>
                                                             <div className="mt-1 text-lg font-extrabold">
                                                                 {r?.subj ?? "—"}
                                                             </div>
                                                         </div>
 
-                                                        <div className="rounded-xl border bg-white p-2.5">
+                                                        <div className="rounded-xl border bg-white p-2.5 min-w-0">
                                                             <div className="text-xs text-slate-600">π_ex</div>
                                                             <div className="mt-1 text-lg font-extrabold">
                                                                 {r?.exPost ?? "—"}
