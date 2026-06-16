@@ -119,6 +119,7 @@ function dutchStartPrice(x) {
 
 // предел для английского аукциона
 //логика такая же ккак в голландском и первой цене
+// считаем максимальную цену, до которой свинка готова идти в открытом аукционе
 function getBotOpenLimit(type, s, n) {
     if (type === "honest") return s;
     if (type === "aggressive") return Math.round(0.95 * s);
@@ -129,6 +130,7 @@ function getBotOpenLimit(type, s, n) {
 }
 
 // ставка в закрытых аукционах
+// считаем закрытую ставку свинки по ее типу
 function getBotSealedBid(type, s, n) {
     if (type === "honest") return s;
     if (type === "aggressive") return Math.round(0.95 * s);
@@ -152,6 +154,7 @@ export function createGameSeries({
     tokensEnabled,
     seed,
 }) {
+    // если seed нормальный, используем его, иначе берем текущее время
     const baseSeed = Number.isFinite(Number(seed)) ? Number(seed) : Date.now();
     // создаем генератор случайностей для всей серии
     // если seed одинаковый, то и серия получится такая же
@@ -172,7 +175,9 @@ export function createGameSeries({
         botTypes[String(i)] = picked[i - 1];
     }
 
+    // банк зависит от числа лотов: на каждый лот по 100 хрюблей
     const bank = getStartBank(lots);
+    // жетоны выдаем только если они включены в настройках
     const tokens = tokensEnabled ? getTokenCount(format, lots) : 0;
 
     return {
@@ -210,8 +215,10 @@ export function createGameSeries({
 
 //создаем новый лот
 export function createLot(game, { useToken = false }) {
+    // для каждого лота свой rng, чтобы лоты были разными, но повторяемыми по seed
     const rng = new Rng(game.baseSeed + game.currentLot * 1000);
 
+    // истинная ценность лота случайная в заданном диапазоне
     const x = randInt(rng, 60, 200);
 
     const { userValue, botValues } = genLotValues({
@@ -222,6 +229,7 @@ export function createLot(game, { useToken = false }) {
         botCount: game.botCount,
     });
 
+    // в начале лота все свинки еще участвуют
     const activeBots = Array.from({ length: game.botCount }, (_, i) => String(i + 1));
 
     // выбираем картинку для определ лота
@@ -230,6 +238,7 @@ export function createLot(game, { useToken = false }) {
     const lotImageId =
         game.lotImageOrder?.[game.currentLot - 1] ?? game.currentLot;
 
+    // стартовая цена нужна только для открытых форматов
     let startPrice = 0;
 
     if (game.format === "english") startPrice = englishStartPrice(x, rng);
@@ -288,13 +297,16 @@ function getEnglishBotAction({
     bank,
     rng,
 }) {
+    // лимит ограничен и стратегией свинки, и ее банком
     const lim = Math.min(getBotOpenLimit(type, s, n), bank);
+    // минимальное повышение в английском — на 1 хрюбль
     const nextPrice = price + 1;
 
     if (nextPrice > lim) {
         return { action: "pass" };
     }
 
+    // агрессивная свинка иногда прыгает сразу на +2 или +3
     if (type === "aggressive") {
         const doJump = randInt(rng, 1, 100) <= 30;
 
@@ -312,7 +324,9 @@ function getEnglishBotAction({
 }
 
 // движок английского аукциона
+// отдельный класс, чтобы не размазывать логику английского по всему файлу
 class EnglishLotEngine {
+    // копируем лот, чтобы аккуратно менять его внутри движка
     constructor(game, lot) {
         this.game = game;
         this.lot = {
@@ -344,13 +358,16 @@ class EnglishLotEngine {
             1
         );
 
+        // лидер не ходит сам против себя, поэтому убираем его из очереди
         const pool = this.getAliveBots().filter((id) => id !== this.lot.leader);
+        // порядок хода свинок случайный, но повторяемый при том же seed
         this.lot.roundOrder = shuffle(pool, rng);
         this.lot.turnIndex = 0;
     }
 
     // завершение лота в разных ситуациях
     finishWithWinner(winnerId, paid) {
+        // помечаем лот завершенным и записываем победителя
         this.lot.isFinished = true;
         this.lot.winner = winnerId;
         this.lot.paid = paid;
@@ -378,6 +395,7 @@ class EnglishLotEngine {
         const bank = this.game.botBanks[botId];
         const n = this.game.botCount + 1;
 
+        // если осталась одна свинка, проверяем, готова ли она купить по текущ цене
         const lim = Math.min(getBotOpenLimit(type, s, n), bank);
 
         if (this.lot.price <= lim) {
@@ -401,7 +419,9 @@ class EnglishLotEngine {
     }
 
     // один следующий ход свинок
+    // этот метод вызывается таймером с фронта для автохода свинок
     advanceBots() {
+        // если лот уже закрыт, ничего не делаем
         if (this.lot.isFinished) return this.getState();
         if (this.lot.phase !== "waiting") return this.getState();
 
@@ -449,6 +469,7 @@ class EnglishLotEngine {
             return this.finishUnsold();
         }
 
+        // берем следующую свинку из очереди текущего раунда
         const botId = this.lot.roundOrder[this.lot.turnIndex];
         this.lot.turnIndex += 1;
 
@@ -468,6 +489,7 @@ class EnglishLotEngine {
             1
         );
 
+        // решаем: свинка пасует или повышает ставку
         const botAction = getEnglishBotAction({
             type,
             s,
@@ -514,6 +536,7 @@ class EnglishLotEngine {
         }
 
         // бот повышает ставку
+        // если свинка повысила, новая цена становится текущей
         this.lot.price += botAction.step;
         this.lot.leader = botId;
         this.lot.lastBids[botId] = this.lot.price;
@@ -545,10 +568,12 @@ class EnglishLotEngine {
     }
 
     // действие пользователя
+    // сюда приходят действия игрока из интерфейса
     applyUserAction(action) {
         if (this.lot.isFinished) return this.getState();
 
         // пользователь только так сказать вклинивается
+        // игрок может вручную войти в торги после наблюдения
         if (action === "enter") {
             if (!this.lot.userActive) return this.getState();
 
@@ -610,6 +635,7 @@ class EnglishLotEngine {
             return this.getState();
         }
 
+        // из названия кнопки получаем размер повышения
         const step =
             action === "raise1" ? 1 :
                 action === "raise2" ? 2 :
@@ -618,6 +644,7 @@ class EnglishLotEngine {
 
         if (step === 0) return this.getState();
 
+        // считам цену после ставки игрока
         const nextPrice = this.lot.price + step;
 
         if (nextPrice > this.game.userBank) {
@@ -625,6 +652,7 @@ class EnglishLotEngine {
             return this.getState();
         }
 
+        // игрок становится лидером после успешного повышения
         this.lot.price = nextPrice;
         this.lot.leader = "user";
         this.lot.lastUserBid = this.lot.price;
@@ -652,11 +680,13 @@ class EnglishLotEngine {
     }
 
     // ответ последней свикни в дуэли
+    // ответ последней свинки, когда остались игрок и один бот
     advanceDuelBot() {
         if (this.lot.isFinished) return this.getState();
         if (this.lot.phase !== "duel") return this.getState();
         if (!this.lot.userActive) return this.getState();
 
+        // в дуэли должна остаться ровно одна активная свинка
         const aliveBots = this.getAliveBots();
 
         // дуэль только если осталась одна свинка
@@ -677,6 +707,7 @@ class EnglishLotEngine {
             1
         );
 
+        // последняя свинка тоже смотрит на свой лимит и банк
         const botAction = getEnglishBotAction({
             type,
             s,
@@ -706,6 +737,7 @@ class EnglishLotEngine {
 }
 
 // один следующий ход свинок в английском
+// обертки ниже вызываются из api/game/route.js
 export function applyEnglishBotStep(game, lot) {
     const eng = new EnglishLotEngine(game, lot);
     return eng.advanceBots();
@@ -724,14 +756,17 @@ export function applyEnglishDuelBotStep(game, lot) {
 }
 
 // для голландского
+// готовим пороги свинок для голландского аукциона
 export function runDutchPrepare(game, lot) {
     const n = game.botCount + 1;
+    // сюда кладем цену, на которой каждая свинка готова забрать лот
     const thresholds = {};
 
     for (let i = 1; i <= game.botCount; i++) {
         const id = String(i);
         const s = lot.botValues[id];
         const type = game.botTypes[id];
+        // в голландском порог считается так же, как закрытая ставка
         thresholds[id] = getBotSealedBid(type, s, n);
     }
 
@@ -739,9 +774,11 @@ export function runDutchPrepare(game, lot) {
 }
 
 // первая цена
+// расчет закрытого аукциона первой цены
 export function runFirstPrice(game, lot, userBid) {
     const n = game.botCount + 1;
 
+    // сначала добавляем ставку игрока
     const bids = [{ id: "user", bid: userBid, value: lot.userValue }];
 
     for (let i = 1; i <= game.botCount; i++) {
@@ -749,6 +786,7 @@ export function runFirstPrice(game, lot, userBid) {
         const s = lot.botValues[id];
         const type = game.botTypes[id];
 
+        // потом добавляем ставки всех свинок
         bids.push({
             id,
             bid: Math.min(getBotSealedBid(type, s, n), game.botBanks[id]),
@@ -756,6 +794,7 @@ export function runFirstPrice(game, lot, userBid) {
         });
     }
 
+    // сортируем по убыванию ставки, при равенстве игрок выше
     bids.sort((a, b) => b.bid - a.bid || (a.id === "user" ? -1 : 1));
 
     return {
@@ -769,13 +808,16 @@ export function runFirstPrice(game, lot, userBid) {
 }
 
 // викри
+// расчет аукциона викри
 export function runVickrey(game, lot, userBid) {
+    // снова сначала берем ставку игрока
     const bids = [{ id: "user", bid: userBid, value: lot.userValue }];
 
     for (let i = 1; i <= game.botCount; i++) {
         const id = String(i);
         const s = lot.botValues[id];
 
+        // в викри свинки ставят свою субъективную оценку без шейдинга
         bids.push({
             id,
             bid: Math.min(s, game.botBanks[id]),
@@ -783,12 +825,14 @@ export function runVickrey(game, lot, userBid) {
         });
     }
 
+    // сортируем ставки, чтобы первым был победитель
     bids.sort((a, b) => b.bid - a.bid || (a.id === "user" ? -1 : 1));
 
     return {
         ...lot,
         isFinished: true,
         winner: bids[0].id,
+        // победитель платит вторую по величине ставку
         paid: secondHighest(bids.map((x) => x.bid)),
         winnerValue: bids[0].value,
         userBid,
@@ -802,6 +846,7 @@ export function settleLot(game, lot) {
         history: [...game.history],
     };
 
+    // оценка победителя нужна для субъективного выигрыша
     const winnerValue =
         lot.winner === "user"
             ? lot.userValue
@@ -809,9 +854,12 @@ export function settleLot(game, lot) {
                 ? lot.botValues[lot.winner]
                 : null;
 
+    // субъективный выигрыш = оценка победителя минус цена
     const piSubj = winnerValue == null ? 0 : winnerValue - lot.paid;
+    // ex post выигрыш = истинная ценность минус цена
     const piEx = lot.winner == null ? 0 : lot.x - lot.paid;
 
+    // если выиграл игрок, списываем цену с его банка
     if (lot.winner === "user") {
         next.userBank -= lot.paid;
         next.userWins += 1;
@@ -819,6 +867,7 @@ export function settleLot(game, lot) {
         next.botBanks[lot.winner] -= lot.paid;
     }
 
+    // сохраняем лот в историю, чтобы потом показать итоговую таблицу
     next.history.push({
         lotNo: lot.lotNo,
         winner: lot.winner,
@@ -838,16 +887,20 @@ export function settleLot(game, lot) {
 
 // финальная сводка
 export function finishSeries(game) {
+    // штраф, если игрок купил слишком мало лотов
     const penalty = game.userWins < game.minWins ? 100 : 0;
 
+    // считаем, сколько игрок всего потратил
     const spent = game.history
         .filter((h) => h.winner === "user")
         .reduce((s, h) => s + h.price, 0);
 
+    // суммарный субъективный выигрыш игрока
     const subj = game.history
         .filter((h) => h.winner === "user")
         .reduce((s, h) => s + h.piSubj, 0);
 
+    // суммарный ex post выигрыш игрока
     const ex = game.history
         .filter((h) => h.winner === "user")
         .reduce((s, h) => s + h.piEx, 0);
@@ -860,6 +913,7 @@ export function finishSeries(game) {
         subj,
         ex,
         finalBank,
+        // roi показывает результат относительно потраченных денег
         roi: spent > 0 ? Math.round((ex / spent) * 100) : 0,
     };
 }

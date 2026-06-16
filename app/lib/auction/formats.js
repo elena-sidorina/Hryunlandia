@@ -1,4 +1,4 @@
-// Расчёт 4 форматов аукциона
+// Расчет 4 форматов аукциона
 
 // порядок участников везде один и тот же:
 // 0 - честная
@@ -6,6 +6,7 @@
 // 2 - агрессивная
 // 3 - осторожная
 
+// названия свинок в том же порядке, что и индексы 0-3
 const PIG_NAMES = ["Честная", "Рациональная", "Агрессивная", "Осторожная"];
 
 // roundInt просто округляет ставки
@@ -16,8 +17,10 @@ function roundInt(v) {
 // argMaxDet находит индекс максимума
 // если ничья, решаем ее детерминированно по seed
 function argMaxDet(values, baseSeed) {
+    // сначала ищем само максимальное значение
     const maxVal = Math.max(...values);
 
+    // сюда складываем всех, кто набрал максимум
     const idx = [];
     for (let i = 0; i < values.length; i++) {
         if (values[i] === maxVal) idx.push(i);
@@ -25,13 +28,17 @@ function argMaxDet(values, baseSeed) {
 
     if (idx.length === 1) return idx[0];
 
+    // если максимум у нескольких, seed выбирает одного победителя
     const choice = baseSeed % idx.length;
     return idx[choice];
 }
 
 // secondMaxDet нужен для Викри
 function secondMaxDet(values, baseSeed) {
+    // сначала находим победителя по максимальной ставке
     const winner = argMaxDet(values, baseSeed);
+
+    // потом убираем победителя и ищем вторую цену
     const rest = values.filter((_, i) => i !== winner);
     const second = Math.max(...rest);
 
@@ -40,6 +47,7 @@ function secondMaxDet(values, baseSeed) {
 
 // buildMaxTieLog нужен для ничьей
 function buildMaxTieLog(values, winner, word = "ставку") {
+    // проверяем, была ли ничья за первое место
     const maxVal = Math.max(...values);
     const tied = [];
     for (let i = 0; i < values.length; i++) {
@@ -59,6 +67,7 @@ function buildMaxTieLog(values, winner, word = "ставку") {
 // победитель получает свою субъективную оценку минус цену
 // остальные получают 0
 function buildUtilities(vals, winner, price) {
+    // у непобедителей полезность 0, потому что они ничего не купили
     return {
         Честная: winner === 0 ? vals[0] - price : 0,
         Рациональная: winner === 1 ? vals[1] - price : 0,
@@ -70,11 +79,16 @@ function buildUtilities(vals, winner, price) {
 // ВИКРИ
 
 export function calcVickrey({ s, x, baseSeed }) {
+    // в викри все ставят ровно свою субъективную оценку
     const vals = [s.sh, s.sr, s.sa, s.so];
 
+    // winner — максимальная ставка, second — вторая цена
     const { winner, second } = secondMaxDet(vals, baseSeed);
 
+    // победитель платит не свою ставку, а вторую по величине
     const price = second;
+
+    // subj — выигрыш по личной оценке, exPost — по истинной ценности
     const subj = vals[winner] - price;
     const exPost = x - price;
 
@@ -82,7 +96,7 @@ export function calcVickrey({ s, x, baseSeed }) {
 
     const log = [
         "Все участники сделали закрытые ставки.",
-        buildMaxTieLog(vals, winner, "ставку"),
+        buildMaxTieLog(vals, winner, "ставку"), ,
         `По правилу Викри победитель платит вторую по величине цену: ${price} хрюблей.`,
     ];
 
@@ -103,11 +117,13 @@ export function calcVickrey({ s, x, baseSeed }) {
 // АНГЛИЙСКИЙ
 
 export function calcEnglish({ s, x, agr, ost, baseSeed }) {
+    // в обучении всегда 4 участника, поэтому n фиксирован
     const n = 4;
 
     // максимальные ставки участников с учётом стратегии
     const bids = [
         s.sh, // честная
+        // рациональная шейдит по формуле 1 - 1/n
         roundInt((1 - 1 / n) * s.sr), // рациональная
         roundInt(agr * s.sa), // агрессивная
         roundInt(ost * s.so), // осторожная
@@ -116,8 +132,10 @@ export function calcEnglish({ s, x, agr, ost, baseSeed }) {
     // субъективные оценки в том же порядке
     const vals = [s.sh, s.sr, s.sa, s.so];
 
+    // побеждает тот, у кого максимальная готовность платить
     const winner = argMaxDet(bids, baseSeed);
 
+    // ближайший конкурент задает почти всю итоговую цену
     const otherBids = bids.filter((_, i) => i !== winner);
     const secondBid = Math.max(...otherBids);
 
@@ -153,16 +171,22 @@ export function calcEnglish({ s, x, agr, ost, baseSeed }) {
 // ПЕРВАЯ ЦЕНА
 
 export function calcFirstPrice({ s, x, agr, ost, baseSeed }) {
+    // снова 4 участника, как в режиме обучения
     const n = 4;
 
+    // закрытые ставки с учетом стратегии каждой свинки
     const bids = [
         s.sh, // честная
+        // рациональная шейдит по формуле 1 - 1/n
         roundInt((1 - 1 / n) * s.sr), // рациональная
         roundInt(agr * s.sa), // агрессивная
         roundInt(ost * s.so), // осторожная
     ];
 
+    // максимальная ставка выигрывает
     const winner = argMaxDet(bids, baseSeed);
+
+    // в первой цене победитель платит именно свою ставку
     const price = bids[winner];
 
     const vals = [s.sh, s.sr, s.sa, s.so];
@@ -195,16 +219,22 @@ export function calcFirstPrice({ s, x, agr, ost, baseSeed }) {
 // ГОЛЛАНДСКИЙ
 
 export function calcDutch({ s, x, agr, ost, baseSeed }) {
+    // в голландском участник заранее имеет порог, по которому готов купить
     const n = 4;
 
+    // thresholds — максимальные цены, на которых свинки согласны остановить падение цены
     const thresholds = [
         s.sh, // честная
+        // рациональная шейдит по формуле 1 - 1/n
         roundInt((1 - 1 / n) * s.sr), // рациональная
         roundInt(agr * s.sa), // агрессивная
         roundInt(ost * s.so), // осторожная
     ];
 
+    // у кого самый высокий порог, тот первым забирает лот
     const winner = argMaxDet(thresholds, baseSeed);
+
+    // цена равна порогу победителя
     const price = thresholds[winner];
 
     const vals = [s.sh, s.sr, s.sa, s.so];
@@ -239,6 +269,7 @@ export function calcDutch({ s, x, agr, ost, baseSeed }) {
 // ЭФФЕКТИВНОСТЬ
 
 export function isEfficient(winnerIdx, s) {
+    // эффективность значит, что выиграл участник с самой высокой субъективной оценкой
     const vals = [s.sh, s.sr, s.sa, s.so];
     const maxVal = Math.max(...vals);
     return vals[winnerIdx] === maxVal;

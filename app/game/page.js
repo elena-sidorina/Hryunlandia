@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 
+// карточки форматов аукциона
 const FORMATS = [
     {
         id: "english",
@@ -25,6 +26,7 @@ const FORMATS = [
     },
 ];
 
+// названия типов свинок
 const BOT_TITLES = {
     honest: "Честная",
     aggressive: "Агрессивная",
@@ -32,6 +34,7 @@ const BOT_TITLES = {
     cautious: "Осторожная",
 };
 
+// варианты для угадывания типов свинок
 const BOT_OPTIONS = [
     { id: "honest", title: "Честная" },
     { id: "aggressive", title: "Агрессивная" },
@@ -39,6 +42,7 @@ const BOT_OPTIONS = [
     { id: "cautious", title: "Осторожная" },
 ];
 
+// картинки свинок по типам
 const BOT_IMAGES = {
     honest: "/pigs/honest_pig.png",
     aggressive: "/pigs/agressive_pig.png",
@@ -46,6 +50,7 @@ const BOT_IMAGES = {
     cautious: "/pigs/cautious_pig.png",
 };
 
+// данные для модалки со шпаргалкой по свинкам
 const GAME_PIG_DETAILS = [
     {
         title: "Честная свинка",
@@ -77,6 +82,7 @@ const GAME_PIG_DETAILS = [
     },
 ];
 
+// общий запрос к api игры
 async function apiPost(payload) {
     const r = await fetch("/api/game", {
         method: "POST",
@@ -125,7 +131,9 @@ export default function GamePage() {
     const actionLockRef = useRef(false);
     const [quickTipOpen, setQuickTipOpen] = useState(false);
 
+    // проверяем, открытый ли сейчас формат
     const isOpen = format === "english" || format === "dutch";
+    // без seed серию не запускаем
     const seedReady = seed.trim().length > 0;
 
     // если меняем формат, то варианты лотов тоже подстраиваем
@@ -141,8 +149,10 @@ export default function GamePage() {
 
     // старт серии
     async function startSeries() {
+        // без seed не стартуем
         if (!seedReady) return;
 
+        // сервер создает серию, банки и скрытые типы свинок
         const data = await apiPost({
             mode: "start",
             format,
@@ -165,6 +175,7 @@ export default function GamePage() {
 
     // старт лота
     async function beginLot(useToken) {
+        // просим сервер создать новый лот
         const data = await apiPost({
             mode: "new_lot",
             game,
@@ -173,6 +184,7 @@ export default function GamePage() {
 
         let nextGame = game;
 
+        // если берем жетон, сразу уменьшаем их число на экране
         if (game.tokensEnabled && game.tokensLeft > 0 && useToken) {
             nextGame = {
                 ...game,
@@ -183,6 +195,7 @@ export default function GamePage() {
 
         let nextLot = data.lot;
 
+        // для голландского заранее готовим стартовую цену и пороги свинок
         if (game.format === "dutch") {
             const prep = await apiPost({
                 mode: "dutch_prepare",
@@ -201,6 +214,7 @@ export default function GamePage() {
 
     // один ход свинки в английском (!)
     async function englishBotStep() {
+        // защита от двойного клика и наложения ходов
         if (!game || !lot || busy || actionLockRef.current) return;
 
         actionLockRef.current = true;
@@ -226,6 +240,7 @@ export default function GamePage() {
 
     // действие игрока в английском
     async function englishUserAction(action) {
+        // тут тоже не даем отправить два действия подряд
         if (!game || !lot || busy || actionLockRef.current) return;
 
         actionLockRef.current = true;
@@ -254,6 +269,7 @@ export default function GamePage() {
 
     // ставка в закрытом аукционе
     async function submitClosedBid(kind) {
+        // по типу закрытого аукциона выбираем режим api
         const mode = kind === "first" ? "first_price" : "vickrey";
 
         const data = await apiPost({
@@ -280,6 +296,7 @@ export default function GamePage() {
         setGame(nextGame);
         setLot(null);
 
+        // если лоты закончились, считаем итоговую сводку
         if (nextGame.currentLot > nextGame.lots) {
             const s = await apiPost({
                 mode: "finish",
@@ -361,6 +378,7 @@ export default function GamePage() {
             setLot((prev) => {
                 if (!prev) return prev;
 
+                // цена постепенно падает на 1 хрюбль
                 const nextPrice = Math.max(0, prev.price - 1);
                 const nextLogs = [...prev.logs, `Цена упала до ${nextPrice}`];
 
@@ -409,6 +427,7 @@ export default function GamePage() {
         }
     }, [screen, game, lot]);
 
+    // список участников для карточек на экране торгов
     const playerRows = useMemo(() => {
         if (!game) return [];
 
@@ -422,24 +441,30 @@ export default function GamePage() {
     }, [game]);
 
     // что показывать на экране результата лота
+    // проверяем, выиграл ли текущий лот игрок
     const lotResultUserWon = lot?.winner === "user";
 
+    // считаем, каким станет банк после текущ лота
     const lotResultBank = game && lot
         ? game.userBank - (lotResultUserWon ? lot.paid : 0)
         : 0;
 
+    // считаем победы с учетом текущего лота
     const lotResultWins = game && lot
         ? game.userWins + (lotResultUserWon ? 1 : 0)
         : 0;
 
+    // субъективный выигрыш: личная оценка минус цена
     const lotResultPiSubj = lot
         ? lot.userValue - lot.paid
         : 0;
 
+    // ex post выигрыш: истинная ценность минус цена
     const lotResultPiEx = lot
         ? lot.x - lot.paid
         : 0;
 
+    // ставка игрока нужна для карточки результата
     const lotResultUserBid =
         lot?.userBid ??
         lot?.lastUserBid ??
@@ -452,6 +477,7 @@ export default function GamePage() {
         ? `/lots/lot${lot.lotImageId}.jpg`
         : null;
 
+    // аватар победителя для результата лота
     const lotResultAvatar =
         lot?.winner === "user"
             ? "/pigs/user_kitty.png"
@@ -459,6 +485,7 @@ export default function GamePage() {
                 ? "/pigs/mischievous_pig.png"
                 : null;
 
+    // текст победителя для результата лота
     const lotResultWinnerText =
         lot?.winner === "user"
             ? "Вы"
@@ -466,6 +493,7 @@ export default function GamePage() {
                 ? `Свин ${lot.winner}`
                 : "Никто";
 
+    // короткий вывод по текущему лоту
     const lotResultMood =
         lot?.winner === "user"
             ? (lotResultPiEx < 0
@@ -475,6 +503,7 @@ export default function GamePage() {
                 ? "Лот забрала скрытая свинка-соперник"
                 : "Лот остался непроданным";
 
+    // тексты для всплывающих пояснений к метрикам
     const metricTexts = {
         finalValue: {
             title: "Итоговое состояние по истинной ценности",
@@ -501,6 +530,7 @@ export default function GamePage() {
     // делаем слово "шейдить" кликабельным
     function renderShadeText(text) {
         return text.split(/(шейдить|шейдит|шейдят)/gi).map((part, i) => {
+            // проверям, нужно ли сделать слово кликабельным
             const isShade = ["шейдить", "шейдит", "шейдят"].includes(part.toLowerCase());
 
             if (!isShade) return part;
@@ -635,6 +665,7 @@ export default function GamePage() {
                                 {/* правая колонка */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {FORMATS.map((f) => {
+                                        // подсвечиваем выбранный формат
                                         const isSelected = format === f.id;
 
                                         return (
@@ -725,6 +756,7 @@ export default function GamePage() {
                                     <div className="font-semibold">Количество лотов</div>
 
                                     <div className="mt-3 flex gap-3">
+                                        {/* для открытых и закрытых форматов разные варианты лотов */}
                                         {(isOpen ? [3, 5, 7] : [5, 7, 9]).map((v) => (
                                             <button
                                                 key={v}
@@ -742,6 +774,7 @@ export default function GamePage() {
                                     <div className="mt-6 font-semibold">Количество соперников</div>
 
                                     <div className="mt-3 flex gap-3">
+                                        {/* тут выбираем число скрытых соперников */}
                                         {[2, 3, 4].map((v) => (
                                             <button
                                                 key={v}
@@ -759,6 +792,7 @@ export default function GamePage() {
                                     <div className="mt-6 font-semibold">Шум оценки</div>
 
                                     <div className="mt-3 flex gap-3">
+                                        {/* шум отвечает за разброс субъективной оценки */}
                                         {[5, 10, 15].map((v) => (
                                             <button
                                                 key={v}
@@ -1199,6 +1233,7 @@ export default function GamePage() {
                                         <div className="mt-5 flex flex-wrap gap-3">
                                             <button
                                                 onClick={() => {
+                                                    // фиксируем, что игрок забрал лот в голландском
                                                     const winnerLot = {
                                                         ...lot,
                                                         isFinished: true,
@@ -1663,6 +1698,7 @@ export default function GamePage() {
                                     {guessMode === "guess" && (
                                         <div className="mt-5 space-y-3">
                                             {Object.entries(game.botTypes).map(([id, type]) => {
+                                                // проверям, совпала ли догадка с настоящим типом
                                                 const guess = botGuesses[id] ?? "";
                                                 const checked = guessesChecked;
                                                 const isCorrect = checked && guess === type;

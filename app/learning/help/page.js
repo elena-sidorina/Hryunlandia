@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+// основные 4 аукциона, которые показываем в справке
 const auctions = [
     {
         title: "Английский аукцион",
@@ -55,6 +56,7 @@ const auctions = [
     },
 ];
 
+// короткий блок про другие форматы аукционов
 const otherAuctions = [
     {
         title: "Аукцион со всеобщей оплатой",
@@ -74,6 +76,7 @@ const otherAuctions = [
     },
 ];
 
+// поведение свинок в разных форматах
 const pigBehaviors = [
     {
         title: "Честная",
@@ -101,6 +104,7 @@ const pigBehaviors = [
     },
 ];
 
+// источники, которые открываются по ссылкам
 const sources = [
     {
         title: "К. Сонин — «Основы теории аукционов»",
@@ -129,10 +133,13 @@ const sources = [
     },
 ];
 
+// страница со справкой по теории аукционов
 export default function LearningHelpPage() {
     return (
         <main className="min-h-screen bg-rose-100 px-4 py-6 sm:p-8">
+            {/* общий контейнер страницы */}
             <div className="w-full max-w-3xl mx-auto">
+                {/* кнопки навигации назад */}
                 <div className="flex flex-wrap gap-3">
                     <Link
                         href="/learning?restore=1"
@@ -149,6 +156,7 @@ export default function LearningHelpPage() {
                     </Link>
                 </div>
 
+                {/* заголовок справки */}
                 <h1 className="mt-6 text-4xl font-extrabold">
                     Справка по аукционам
                 </h1>
@@ -159,6 +167,7 @@ export default function LearningHelpPage() {
                     объясняет не только правила, но и то, почему свинки ведут себя именно так.
                 </p>
 
+                {/* блок с разделением на открытые и закрытые аукционы */}
                 <section className="mt-8 rounded-2xl border bg-white/70 p-6 shadow-sm">
                     <h2 className="text-2xl font-bold">Главная идея</h2>
 
@@ -183,10 +192,12 @@ export default function LearningHelpPage() {
                     </div>
                 </section>
 
+                {/* карточки 4 основных аукционов */}
                 <section className="mt-8">
                     <h2 className="text-2xl font-bold">4 основных аукциона Хрюнляндии</h2>
 
                     <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        {/* выводим каждую карточку из массива auctions */}
                         {auctions.map((a) => (
                             <article
                                 key={a.title}
@@ -202,6 +213,7 @@ export default function LearningHelpPage() {
                                     </div>
                                 </div>
 
+                                {/* внутри карточки отдельно правила, история, стратегия и игра */}
                                 <div className="mt-5 space-y-4 text-slate-700 leading-relaxed">
                                     <div>
                                         <div className="font-bold text-slate-900">Как работает</div>
@@ -228,10 +240,12 @@ export default function LearningHelpPage() {
                     </div>
                 </section>
 
+                {/* блок про поведние свинок */}
                 <section className="mt-8 rounded-2xl border bg-white/70 p-6 shadow-sm">
                     <h2 className="text-2xl font-bold">Как ведут себя свинки</h2>
 
                     <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* карточки свинок берем из pigBehaviors */}
                         {pigBehaviors.map((pig) => (
                             <div
                                 key={pig.title}
@@ -259,10 +273,12 @@ export default function LearningHelpPage() {
                     </div>
                 </section>
 
+                {/* дополнительные виды аукционов, не из основной игры */}
                 <section className="mt-8 rounded-2xl border bg-white/70 p-6 shadow-sm">
                     <h2 className="text-2xl font-bold">Коротко про другие виды аукционов</h2>
 
                     <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* просто перебираем список других аукционов */}
                         {otherAuctions.map((a) => (
                             <div key={a.title} className="rounded-xl border bg-white p-4">
                                 <div className="font-bold">{a.title}</div>
@@ -274,6 +290,7 @@ export default function LearningHelpPage() {
                     </div>
                 </section>
 
+                {/* короткие выводы, чтобы игрок понял как действовать */}
                 <section className="mt-8 rounded-2xl border bg-white/70 p-6 shadow-sm">
                     <h2 className="text-2xl font-bold">Главные выводы для игры</h2>
 
@@ -303,10 +320,12 @@ export default function LearningHelpPage() {
                     </div>
                 </section>
 
+                {/* список источников по теме */}
                 <section className="mt-8 rounded-2xl border bg-white/70 p-6 shadow-sm">
                     <h2 className="text-2xl font-bold">Источники</h2>
 
                     <div className="mt-5 space-y-3">
+                        {/* ссылки открываются в новой вкладке */}
                         {sources.map((s) => (
                             <a
                                 key={s.title}

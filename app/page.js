@@ -1,8 +1,11 @@
 export default function IntroPage() {
+  // самый первый экран приложения
   return (
     <main className="min-h-screen bg-[url('/castle-bg.jpg')] bg-cover bg-center flex items-center justify-center p-6">
+      {/* общий контейнер для всей карточки */}
       <div className="w-full max-w-3xl">
         <div className="mb-4 flex justify-end">
+          {/* ссылка на репозиторий проекта */}
           <a
             href="https://github.com/elena-sidorina/Hryunlandia"
             target="_blank"
@@ -13,14 +16,17 @@ export default function IntroPage() {
           </a>
         </div>
 
+        {/* главная карточка с описанием хрюнляндии */}
         <div className="w-full bg-white/50 backdrop-blur-md rounded-2xl shadow-xl p-8">
           <h1 className="text-4xl font-bold text-center">🏰 Хрюнляндия</h1>
 
+          {/* кратко объясняем, какие аукционы есть в проекте */}
           <p className="mt-6 text-slate-800 leading-relaxed">
             Королевство Хрюнляндия славится аукционами. Здесь проводят открытые торги — английский (цена растёт) и
             голландский (цена падает), — и закрытые — первой цены и Викри (вторая цена).
           </p>
 
+          {/* вводим 4 типа свинок */}
           <p className="mt-6 font-semibold text-slate-900">
             Свин-аукционер шепнул секрет: все участники делятся на 4 архетипа:
           </p>
@@ -32,11 +38,13 @@ export default function IntroPage() {
             <li>• Осторожный свин не любит рисковать, а потому занижает и уходит раньше.</li>
           </ul>
 
+          {/* объясняем, что можно делать в приложении */}
           <p className="mt-6 text-slate-800 leading-relaxed">
             В этом приложении вы можете посмотреть, как свинки торгуются, поиграть сами, и сравнить результаты разных
             форматов.
           </p>
 
+          {/* советуем сначала пройти обучение, а потом игру */}
           <p className="mt-4 text-slate-700 font-medium">
             Перед тем, как вы приступите к участию в аукционах во вкладке «Игра», настоятельно рекомендуем вам зайти в
             «Обучение» — там вы поймёте, как устроены 4 аукциона, как действуют свинки на практике и какая тактика когда
@@ -44,6 +52,7 @@ export default function IntroPage() {
           </p>
 
           <div className="mt-8 flex justify-center">
+            {/* переход на экран выбора режима */}
             <a
               href="/home"
               className="px-8 py-4 rounded-2xl bg-rose-400 text-white text-lg font-semibold shadow-md hover:bg-rose-500 transition-all duration-300"

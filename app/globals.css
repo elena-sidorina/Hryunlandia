@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
+/* базовые цвета сайта */
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
+/* переменные для tailwind v4, чтобы можно было использовать наши цвета и шрифты */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -12,6 +14,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* темная тема от системы, если у пользователя включен dark mode */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -19,6 +22,7 @@
   }
 }
 
+/* общие стили для всей страницы */
 body {
   background: var(--background);
   color: var(--foreground);

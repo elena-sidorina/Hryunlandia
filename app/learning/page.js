@@ -18,6 +18,7 @@ const FORMATS = [
     { id: "dutch", title: "Голландский" },
 ];
 
+// базовый список свинок, по нему строим карточки оценок
 const PIGS = [
     { title: "Честная", key: "sh", img: "/pigs/honest_pig.png" },
     { title: "Рациональная", key: "sr", img: "/pigs/rational_pig.png" },
@@ -25,6 +26,7 @@ const PIGS = [
     { title: "Осторожная", key: "so", img: "/pigs/cautious_pig.png" },
 ];
 
+// подробное описание свинок для модалки
 const PIG_DETAILS = [
     {
         title: "Честная свинка",
@@ -58,6 +60,7 @@ const PIG_DETAILS = [
 
 // подробные тексты для пасхалки
 // можно потом перкписать красивее и длиннее (чисто  учебная часть)
+// тексты для окна с объяснением каждого формата
 const FORMAT_DETAILS = {
     english: {
         title: "Английский аукцион (открытый)",
@@ -123,8 +126,10 @@ export default function LearningPage() {
     // infoId хранит какрй именно аукцион сейчас показываем в этом окне
     const [infoId, setInfoId] = useState(null);
 
+    // открыта ли модалка про типы свинок
     const [pigsInfoOpen, setPigsInfoOpen] = useState(false);
 
+    // открыта ли модалка про шейдинг
     const [shadeInfoOpen, setShadeInfoOpen] = useState(false);
 
     // выбранный формат аукциона 
@@ -184,6 +189,7 @@ export default function LearningPage() {
 
     // нижняя и верхняя границы для оценок свинок
     // считаем от ист ценности x и шума yPct
+    // границы нужны и для автогенерации, и для ручных ползунков
     const minVal = Math.max(0, Math.round(x - (x * yPct) / 100));
     const maxVal = Math.round(x + (x * yPct) / 100);
 
@@ -239,6 +245,7 @@ export default function LearningPage() {
 
     }, [step, mode, s, res, results, stats]);
 
+    // задаем порядок экранов для каждого режима
     function getFlow(m) {
         if (m === "demo") return [1, 2, 3, 4, 5];
         if (m === "compare") return [1, 2, 3, 6];
@@ -246,6 +253,7 @@ export default function LearningPage() {
         return [1, 2, 3, 4, 5, 6, 7];
     }
 
+    // показываем формулу ставки для каждой свинки
     function getBidFormula(p, value, bid) {
         if (format === "vickrey") {
             return `ставка = субъективная оценка = ${value}`;
@@ -270,11 +278,13 @@ export default function LearningPage() {
         return `${p.title} свинка`;
     }
 
+    // приводим название победителя к единому виду
     function formatPigLabel(name) {
         if (!name || name === "—") return "—";
         return String(name).includes("свин") ? String(name) : `${name} свинка`;
     }
 
+    // добавляем мягкие переносы, чтобы длинные слова не вылезали
     function renderPigName(name) {
         return String(name || "")
             .replace("Рациональная", "Рацио\u00ADнальная")
@@ -282,6 +292,7 @@ export default function LearningPage() {
             .replace("Осторожная", "Осторож\u00ADная");
     }
 
+    // универсальная карточка свинки для оценок, ставок и победителя
     function renderPigCard(p, index, value, subText = null, markWinner = true) {
         const isWinner = markWinner && res?.winner === index;
 
@@ -324,6 +335,7 @@ export default function LearningPage() {
     }
 
     // делаем слово "шейдить" кликабельным
+    // в тексте ищем слово шейдить и делаем его кнопкой
     function renderShadeText(text) {
         return text.split(/(шейдить|шейдит|шейдят)/gi).map((part, i) => {
             const isShade = ["шейдить", "шейдит", "шейдят"].includes(part.toLowerCase());
@@ -369,6 +381,7 @@ export default function LearningPage() {
     }
 
     // ф-ция для сохранения перед переходом в сравку
+    // сохраняем состояние, чтобы после справки вернуться обратно
     function saveLearningHelpState() {
         sessionStorage.setItem(
             "learningHelpState",
@@ -451,6 +464,7 @@ export default function LearningPage() {
     };
 
     // если пользователь хочет сам задать оценки
+    // включаем ручной режим оценок
     function startManualValuations() {
         setValuationMode("manual");
 
@@ -474,6 +488,7 @@ export default function LearningPage() {
     }
 
     // меняем одну оценку в ручном режиме
+    // обновляем только одну оценку, остальные не трогаем
     function changeManualValuation(key, value) {
         setS((prev) => ({
             ...(prev ?? {}),
@@ -512,6 +527,7 @@ export default function LearningPage() {
         setRes(data.res);
     }
     // функция "посчитать" для нашего перехода мутного на страницу 6
+    // версия расчета для кнопки на экране результата
     async function calcOneUi() {
         try {
             setCalcError("");
@@ -600,6 +616,7 @@ export default function LearningPage() {
         return r.winner ?? "—";
     }
 
+    // по результату ищем объект свинки, чтобы взять картинку
     function getWinnerPigFromResult(r) {
         if (!r) return null;
 
@@ -617,6 +634,7 @@ export default function LearningPage() {
 
     //создаем удобый список карточек для сравнения форматов
     // results приходит с сервера и содержит результаты всех аукционов
+    // приводим результаты сравнения к удобному массиву карточек
     const compareCards = results
         ? [
             {
@@ -650,6 +668,7 @@ export default function LearningPage() {
 
 
     // ищем максимальную цену сделки среди всех форматов (чтобы отметить самую высокую цену)
+    // максимальная цена нужна для бейджа на карточке
     const maxPrice =
         compareCards.length > 0
             ? Math.max(
@@ -662,6 +681,7 @@ export default function LearningPage() {
 
     // ищем максимальный субъективный выигрыш победителя
     // поможет показать, где победитель самый довольный
+    // максимальный субъективный выигрыш тоже подсвечиваем
     const maxSubj =
         compareCards.length > 0
             ? Math.max(
@@ -671,6 +691,7 @@ export default function LearningPage() {
 
 
     // ищем форматы, где произошла переплата (это когда ex post выигрыш отриц)
+    // собираем форматы, где победитель по факту переплатил
     const overpayFormats = compareCards
 
         // оставляем только те форматы, где exPost < 0
@@ -681,6 +702,7 @@ export default function LearningPage() {
 
 
     // проверяем совпал ли победитель во всех форматах
+    // проверяем, одинаковый ли победитель во всех форматах
     const sameWinner =
         compareCards.length > 0
             ? compareCards.every(
@@ -701,6 +723,7 @@ export default function LearningPage() {
     const isLastStep = step === currentFlow[currentFlow.length - 1];
 
     // норм список карточек  со статистикой
+    // карточки статистики для экрана эксперимента
     const expCards = stats
         ? [
             {
@@ -727,6 +750,7 @@ export default function LearningPage() {
         : [];
 
     // ищем свинку, которая выигрывает чаще всего
+    // ищем, кто чаще всех выигрывал в эксперименте
     function getTopWinner(winRates) {
         if (!winRates) return null;
 
@@ -787,6 +811,7 @@ export default function LearningPage() {
 
                             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
 
+                                {/* выводим кнопки режимов обучения */}
                                 {MODES.map((m) => (
 
                                     <button
@@ -865,6 +890,7 @@ export default function LearningPage() {
                                 <div className="font-medium">Определим шум оценки:</div>
 
                                 <div className="mt-4 flex justify-center gap-3">
+                                    {/* кнопки для выбора шума оценки */}
                                     {[5, 10, 15].map((p) => (
                                         <button
                                             key={p}
@@ -927,6 +953,7 @@ export default function LearningPage() {
                                             }}
                                             className="border rounded-lg p-2 w-full bg-white/70"
                                         >
+                                            {/* варианты коэффициента агрессивной свинки */}
                                             {Array.from({ length: 8 }, (_, i) => (0.92 + i * 0.01).toFixed(2)).map((v) => (
                                                 <option key={v} value={v}>
                                                     {v}
@@ -946,6 +973,7 @@ export default function LearningPage() {
                                             }}
                                             className="border rounded-lg p-2 w-full bg-white/70"
                                         >
+                                            {/* варианты коэффициента осторожной свинки */}
                                             {Array.from({ length: 31 }, (_, i) => (0.60 + i * 0.01).toFixed(2)).map((v) => (
                                                 <option key={v} value={v}>
                                                     {v}
@@ -1004,6 +1032,7 @@ export default function LearningPage() {
                             </div>
 
                             {/* если выбрали ручной режим */}
+                            {/* блок с ручными оценками показываем только в ручном режиме */}
                             {valuationMode === "manual" && s && (
                                 <div className="mt-6 space-y-5">
                                     <div className="rounded-2xl border bg-white/70 p-5">
@@ -1074,6 +1103,7 @@ export default function LearningPage() {
                             )}
 
                             {/* если выбрали автогенерацию */}
+                            {/* после автогенерации просто показывем готовые оценки */}
                             {valuationMode === "auto" && s && (
                                 <div className="mt-6 space-y-2 text-lg">
                                     <div>🐽 Честная свинка оценивает лот на <span className="font-semibold">{s.sh}</span> хрюблей</div>
@@ -1119,6 +1149,7 @@ export default function LearningPage() {
                                 <div className="text-sm font-semibold text-slate-600 mb-3">Открытые аукционы</div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* карточки открытых аукционов */}
                                     {[
                                         { id: "english", title: "Английский", rules: "Открытые торги, цена растёт. Побеждает тот, кто выдержал до конца." },
                                         { id: "dutch", title: "Голландский", rules: "Открытые торги, цена падает. Первый, кто согласится — покупает." },
@@ -1167,6 +1198,7 @@ export default function LearningPage() {
                                 <div className="text-sm font-semibold text-slate-600 mb-3">Закрытые аукционы</div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* карточки закрытых аукционов */}
                                     {[
                                         { id: "first", title: "Первая цена", rules: "Закрытые ставки. Победитель платит свою ставку." },
                                         { id: "vickrey", title: "Викри", rules: "Закрытые ставки. Победитель платит вторую по величине ставку." },
@@ -1286,6 +1318,7 @@ export default function LearningPage() {
                                         <div className="rounded-2xl border bg-white/70 p-5">
                                             <div className="text-lg font-bold">Как прошли торги</div>
 
+                                            {/* если сервер прислал ставки, показываем их отдельно */}
                                             {res?.bids && Array.isArray(res.bids) && (
                                                 <div className="mt-4">
                                                     <div className="text-base font-bold">
@@ -1308,6 +1341,7 @@ export default function LearningPage() {
                                             <div className="mt-5">
                                                 <div className="text-base font-bold">Ход торгов</div>
 
+                                                {/* журнал торгов чистим от пустых строк */}
                                                 {Array.isArray(res?.log) && res.log.length > 0 ? (
                                                     <div className="mt-3 space-y-2">
                                                         {res.log
@@ -1543,6 +1577,7 @@ export default function LearningPage() {
                             {results && (
                                 <>
                                     <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* рисуем карточку для каждого формата */}
                                         {compareCards.map((card) => {
                                             const r = card.data;
                                             const winner = getWinnerName(r);
@@ -1747,6 +1782,7 @@ export default function LearningPage() {
                             {stats && (
                                 <>
                                     <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        {/* рисуем статистику по каждому формату */}
                                         {expCards.map((card) => {
                                             const d = card.data;
                                             const topWinner = getTopWinner(d?.winRates);
